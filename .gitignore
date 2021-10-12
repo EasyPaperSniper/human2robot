@@ -3,3 +3,4 @@ __pycache__/
 .idea/
 *.bck
 .DS_Store
+./data/human_demo/*
