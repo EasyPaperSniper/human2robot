@@ -4,3 +4,4 @@ __pycache__/
 *.bck
 .DS_Store
 ./data/human_demo/*
+./data/*
