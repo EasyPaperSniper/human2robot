@@ -6,15 +6,14 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from PIL import Image
 
-from fairmotion.fairmotion.viz import camera, gl_render, glut_viewer
-from fairmotion.fairmotion.data import bvh, asfamc
-from fairmotion.fairmotion.ops import conversions, math, motion as motion_ops
-from fairmotion.fairmotion.utils import utils
-from fairmotion.fairmotion.viz.bvh_visualizer import MocapViewer
+from fairmotion.viz import camera, gl_render, glut_viewer
+from fairmotion.data import bvh, asfamc
+from fairmotion.ops import conversions, math, motion as motion_ops
+from fairmotion.utils import utils
+from fairmotion.viz.bvh_visualizer import MocapViewer
 
 
 class demo_mocap_viewer(MocapViewer):
-
     def __init__(
         self,
         file_names,
@@ -25,7 +24,7 @@ class demo_mocap_viewer(MocapViewer):
         camera_origin = [0,0,0],
         play_speed=1.0,
         scale=1.0,
-        thickness=1.0,
+        thickness=0.5,
         render_overlay=False,
         hide_origin=False,
         **kwargs,
@@ -67,7 +66,7 @@ class demo_mocap_viewer(MocapViewer):
         for j in skel.joints:
             T = pose.get_transform(j, local=False)
             pos = conversions.T2p(T)
-            gl_render.render_point(pos, radius=0.08 * self.scale, color=color)
+            gl_render.render_point(pos, radius=0.05 * self.scale, color=color)
             if j.parent_joint is not None:
                 # returns X that X dot vec1 = vec2
                 pos_parent = conversions.T2p(
