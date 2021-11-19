@@ -57,8 +57,8 @@ def extract_state_info(viewer, frame=100):
 
 
 def gen_motion_from_input(com_pose, joint_pose, viewer, frame):
-    motion_length = viewer.motions[0].num_frames()
-    motion = viewer.motions[0]
+    motion_length = viewer.motions[1].num_frames()
+    motion = viewer.motions[1]
     if frame < motion_length:
         pose = motion.get_pose_by_frame(frame)
         skel = pose.skel
