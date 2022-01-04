@@ -6,7 +6,8 @@ import torch
 
 
 class MLP_Encoder(nn.Module):
-    def __init__(self,input_dim, output_dim, learning_rate=1e-3, input_offset=None, output_offset=None):
+    def __init__(self,input_dim, output_dim, learning_rate=1e-3, input_offset=None, output_offset=None, input_scale=None,
+                output_scale=None):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -21,6 +22,17 @@ class MLP_Encoder(nn.Module):
         else:
             self.output_offset = torch.zeros(output_dim, dtype=torch.float)
 
+        if input_scale is not None:
+            self.input_scale = torch.tensor(input_scale, dtype=torch.float)
+        else:
+            self.input_scale = torch.ones(input_dim, dtype=torch.float)
+
+        if output_scale is not None:
+            self.output_scale = torch.tensor(output_scale, dtype=torch.float)
+        else:
+            self.output_scale = torch.ones(output_dim, dtype=torch.float)
+        
+
         self.gen_network()
         self.optimizer = optim.Adam(self.trunk.parameters(), lr=self.learning_rate)
 
@@ -31,8 +43,8 @@ class MLP_Encoder(nn.Module):
             nn.Linear(512, self.output_dim),)
 
     def predict(self, input):
-        input = input - self.input_offset
-        output = self.trunk(input) + self.output_offset
+        input = (input - self.input_offset)/self.input_scale
+        output = self.trunk(input)*self.output_scale + self.output_offset
         return output
 
 

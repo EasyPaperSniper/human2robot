@@ -9,7 +9,7 @@ os.sys.path.insert(0, parentdir)
 import torch
 import numpy as np
 
-from fairmotion.ops import conversions, math, motion as motion_ops
+from fairmotion.ops import conversions, math, quaternion, motion as motion_ops
 from utils import constants
 from torch._C import dtype
 from a1_hardware_controller.locomotion.robots.a1 import foot_position_in_hip_frame_to_joint_angle
@@ -48,11 +48,12 @@ def extract_state_info(viewer, frame=100):
             j_ori = conversions.R2Q(R) 
             joint_pose = np.append(joint_pose,j_ori)
             
+            
         else:
             T = pose.get_transform(j, local=False)
             R,pos = conversions.T2Rp(T)
             com_ori = conversions.R2Q(R) 
-            com_pose = np.append(pos,com_ori)
+            com_pose = np.append(pos,com_ori)       
     return com_pose, joint_pose
 
 
@@ -151,6 +152,16 @@ def gen_rob_tgt_config(viewer, frames=100):
         com_states.append(rob_com_tgt)
         joint_states.append(rob_joint_tgt)
     return com_states, torch.tensor(joint_states, dtype=torch.float)
+
+
+def gen_real_robot_motion(robot_motion, frames):
+    joint_states = []
+    for seq in frames:
+        j_temp = np.array([])
+        for i in seq:
+            j_temp=np.append(j_temp,robot_motion[i])
+        joint_states.append(j_temp)
+    return torch.tensor(joint_states,dtype=torch.float)
 
 
 

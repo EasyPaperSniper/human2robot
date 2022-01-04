@@ -17,6 +17,7 @@ import torch
 import matplotlib.pyplot as plt
 
 from a1_hardware_controller.locomotion.robots.a1_robot_FAIR import A1Robot_sim
+from fairmotion.ops import conversions, math, motion as motion_ops
 import utils.encoder as encoder
 import utils.decoder as decoder
 import utils.classifier as classifier
@@ -153,7 +154,7 @@ def test_learned():
     encoder_1.load_model('./data/test_data/test_1/encoder_1')
     decoder_1.load_model('./data/test_data/test_1/decoder_1')
 
-    demo_index = 0
+    demo_index = 5
     bvh_motion_dir = ['./data/human_demo/walking/'+ str(demo_index) +'.bvh']*2
     viewer = demo_mocap_viewer(file_names = bvh_motion_dir)
 
@@ -168,6 +169,8 @@ def test_learned():
         joint_pose = reconstruct_motion[i][0:HUMAN_CONFIG_DIM].cpu().detach().numpy()
         com_pose = com_ori[i][0]
         se.gen_motion_from_input(com_pose=com_pose, joint_pose=joint_pose, viewer=viewer, frame=i)
+    
+    motion_ops.translate(viewer.motions[0], [0, 1, 0])
     viewer.run()
 
 
@@ -188,7 +191,7 @@ def test_retarget():
     decoder_2.load_model('./data/test_data/test_1/decoder_2')
 
     demo_index = 0
-    bvh_motion_dir = ['./data/human_demo/walking/'+ str(demo_index) +'.bvh']
+    bvh_motion_dir = ['./data/human_demo/jumping/'+ str(demo_index) +'.bvh']
     viewer = demo_mocap_viewer(file_names = bvh_motion_dir)
     motion_length = viewer.motions[0].num_frames()
     frames = sequence_sample_frame_index(motion_length, HORIZON)
