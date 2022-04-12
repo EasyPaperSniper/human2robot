@@ -47,8 +47,7 @@ def extract_state_info(viewer, frame=100):
             R,pos = conversions.T2Rp(T)
             j_ori = conversions.R2Q(R) 
             joint_pose = np.append(joint_pose,j_ori)
-            
-            
+                      
         else:
             T = pose.get_transform(j, local=False)
             R,pos = conversions.T2Rp(T)

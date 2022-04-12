@@ -5,27 +5,66 @@ import torch.nn.functional  as F
 import torch.nn.init as init
 import math
 import numpy as np
+import os
+from torch import optim
+
+# currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+# parentdir = os.path.dirname(currentdir)
+# os.sys.path.insert(0, parentdir)
+
+from trans_mimic.utilities import MANN
+
+
+
+class MLP_network(nn.Module):
+    def __init__(self,):
+        super(MLP_network,self).__init__()
+
+        self.trunk = nn.Sequential(
+            nn.Linear(self.input_dim, 512), nn.ReLU(),
+            nn.Linear(512, 512), nn.ReLU(),
+            nn.Linear(512, self.output_dim),)
+
+    def predict(self, input):
+        return self.trunk(input)
+    
+
 
 class motion_encoder(nn.Module):
-    def __init__(self,):
-        pass
+    def __init__(self,latent_dim, learning_rate =1e-4):
+        super().__init__()
+        self.conv1 = nn.Conv1d(12, 64, 5)
+        self.pool = nn.MaxPool1d(2)
+        self.conv2 = nn.Conv1d(64, 64, 5)
+        self.fc1 = nn.Linear(1216, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, latent_dim)
 
-    def forward(self, motion):
-        return self.trunk(motion)
-
-
-
-class motion_network(nn.Module):
-    def __init__(self, index_gating, n_expert_weights, hg, n_input_motion, n_output_motion, h, drop_prob_gat=0.0, drop_prob_mot=0.3):
-        super(motion_network, self).__init__()
-        self.index_gating = index_gating
-        n_input_gating = self.index_gating.shape[0]
-        self.gatingNN = GatingNN(n_input_gating, n_expert_weights, hg, drop_prob_gat)
-        self.motionNN = MotionPredictionNN(n_input_motion, n_output_motion, n_expert_weights, h, drop_prob_mot)
+        self.optimizer = optim.Adam(self.parameters(), learning_rate, betas=(0.9, 0.999))
 
     def forward(self, x):
-        in_gating = x[..., self.index_gating]
-        BC = self.gatingNN(in_gating)
+        # x = x.float()
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = torch.flatten(x, 1) # flatten all dimensions except batch
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+
+
+class MANN_network(nn.Module):
+    def __init__(self, n_input_gating, n_expert_weights, hg, n_input_motion, n_output_motion, h, learning_rate = 1e-4, drop_prob_gat=0.0, drop_prob_mot=0.3):
+        super(MANN_network, self).__init__()
+        self.gatingNN = MANN.GatingNN(n_input_gating, n_expert_weights, hg, drop_prob_gat)
+        self.motionNN = MANN.MotionPredictionNN(n_input_motion, n_output_motion, n_expert_weights, h, drop_prob_mot)
+
+        self.optimizer = optim.Adam(self.parameters(), learning_rate, betas=(0.9, 0.999))
+
+
+    def forward(self, x):
+        BC = self.gatingNN(x)
         return self.motionNN(x, BC)
 
 

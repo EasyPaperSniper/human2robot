@@ -58,8 +58,6 @@ def sequence_sample_frame_index(motion_length, horzion):
 
 
 
-
-
 def main():
     hu_en_input_dim, hu_en_output_dim = int(const.HUMAN_CONFIG_DIM * HORIZON), int(LATENT_DIM)
     hu_de_input_dim, hu_de_output_dim = LATENT_DIM, const.HUMAN_CONFIG_DIM*OUTPUT_HORIZON
@@ -159,8 +157,6 @@ def main():
         dis_loss.backward()
         dis_1.optimizer.step()
 
-
-    
     # save data
     hu_encoder.save_model('./data/test_data/test_1/hu_encoder')
     hu_decoder.save_model('./data/test_data/test_1/hu_decoder')
