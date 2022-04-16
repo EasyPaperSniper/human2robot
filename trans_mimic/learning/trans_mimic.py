@@ -6,6 +6,14 @@ import numpy as np
 from learning.encoder_decoder import motion_encoder, MANN_network, MLP_network
 from learning.loss_func import reconstrcution_loss
 
+#TODO: encoder structure need to be tune
+#TODO: MANN need to be ensure working
+#TODO: Add normalization
+#TODO: Save data load data
+#TODO: data record/ training tracking
+#TODO: add device
+
+
 class trans_mimic():
     def __init__(self, 
                 human_state_dim, 
@@ -35,15 +43,9 @@ class trans_mimic():
             
         self.reconstrcution_loss = reconstrcution_loss()
 
-    #TODO: encoder structure need to be tune
-    #TODO: MANN need to be ensure working
-    #TODO: Add normalization
-    #TODO: Save data load data
-    #TODO: data record/ training tracking
 
     def forward(self, input_human_traj, human_state_vec, robot_state_vec=None):
         latent_var = self.human_encoder.forward(input_human_traj)
-
         # predict human traj
         predict_traj_torch_human = None
         for _ in range(self.predict_motion_horizon):
@@ -55,6 +57,8 @@ class trans_mimic():
             else:
                 predict_traj_torch_human = torch.cat((predict_traj_torch_human, predict_state_torch_human),1)
 
+        # predict robot traj
+
         return predict_traj_torch_human
 
 
@@ -63,6 +67,7 @@ class trans_mimic():
         input_traj_torch, state_vec_torch, tgt_traj_torch = self.dataset.sample_human_data(self.batch_size)
         predict_traj_torch_human = self.forward(input_traj_torch, state_vec_torch)
 
+        # reconstruction loss
         recon_loss = self.reconstrcution_loss.loss(predict_traj_torch_human, tgt_traj_torch)
         self.human_motion_NN.optimizer.zero_grad()
         self.human_encoder.optimizer.zero_grad()
