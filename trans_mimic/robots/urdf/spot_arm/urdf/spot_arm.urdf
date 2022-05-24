@@ -82,6 +82,29 @@
     <child link="fl.lleg"/>
      <limit effort="1000" velocity="1000.00" lower="-2.80883" upper="-0.264082"/>
   </joint>
+ 
+  <link name="fl_toe">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+      <material name="grey"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="fl_toe_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 -0.3205"/>
+    <parent link="fl.lleg"/>
+    <child link="fl_toe"/>
+  </joint>
+
+
   <link name="fr.hip">
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -145,6 +168,29 @@
     <child link="fr.lleg"/>
      <limit effort="1000" velocity="1000.00" lower="-2.80347" upper="-0.278219"/>
   </joint>
+
+  <link name="fr_toe">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+      <material name="grey"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="fr_toe_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 -0.3205"/>
+    <parent link="fr.lleg"/>
+    <child link="fr_toe"/>
+  </joint>
+
+
   <link name="hl.hip">
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -208,6 +254,31 @@
     <child link="hl.lleg"/>
      <limit effort="1000" velocity="1000.00" lower="-2.7618" upper="-0.232408"/>
   </joint>
+
+<link name="hl_toe">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+      <material name="grey"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="hl_toe_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 -0.3205"/>
+    <parent link="hl.lleg"/>
+    <child link="hl_toe"/>
+  </joint>
+
+
+
+
   <link name="hr.hip">
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -271,6 +342,29 @@
     <child link="hr.lleg"/>
      <limit effort="1000" velocity="1000.00" lower="-2.80304" upper="-0.251421"/>
   </joint>
+
+  <link name="hr_toe">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+      <material name="grey"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <sphere radius="0.02"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="hr_toe_fixed" type="fixed">
+    <origin rpy="0 0 0" xyz="0 0 -0.3205"/>
+    <parent link="hr.lleg"/>
+    <child link="hr_toe"/>
+  </joint>
+
+
   <link name="arm0.link_sh0">
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>

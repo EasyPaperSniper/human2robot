@@ -23,7 +23,7 @@ import pybullet
 import pybullet_data as pd
 
 # import retarget_config_a1 as config
-import retarget_config_spot as config
+import retarget_motion.retarget_config_spot as config
 
 POS_SIZE = 3
 ROT_SIZE = 4
@@ -48,11 +48,12 @@ MOBILE_JOINT_LIMITS = collections.OrderedDict()
 
 mocap_motions = [
   # ["pace", "retarget_motion/data/dog_walk00_joint_pos.txt",162,500],
-  # ["trot", "retarget_motion/data/dog_walk03_joint_pos.txt",448,481 ],
-  ["trot2", "retarget_motion/data/dog_run04_joint_pos.txt",500,700 ],
-  # ["canter", "retarget_motion/data/dog_run00_joint_pos.txt", 430, 459],
-  # ["left turn0", "retarget_motion/data/dog_walk09_joint_pos.txt",1085,1124 ],
-  # ["right turn0", "retarget_motion/data/dog_walk09_joint_pos.txt", 2404,2450],
+  # ["trot", "retarget_motion/data/dog_walk03_joint_pos.txt",448,781 ],
+  # ["trot2", "retarget_motion/data/dog_run04_joint_pos.txt",500,700 ],
+  # ["canter", "retarget_motion/data/dog_run00_joint_pos.txt", 400, 500],
+  # ["left turn0", "retarget_motion/data/dog_walk09_joint_pos.txt",10,1200 ],
+  ["right turn0", "retarget_motion/data/dog_walk09_joint_pos.txt", 2204,2450],
+
 ]
 
 
@@ -62,30 +63,6 @@ mocap_motions = [
 #FRAME_END = 2450
 
 
-def build_markers(num_markers):
-  marker_radius = 0.02
-
-  markers = []
-  for i in range(num_markers):
-    if (i == REF_NECK_JOINT_ID) or (i == REF_PELVIS_JOINT_ID)\
-        or (i in REF_HIP_JOINT_IDS):
-      col = [0, 0, 1, 1]
-    elif (i in REF_TOE_JOINT_IDS):
-      col = [1, 0, 0, 1]
-    else:
-      col = [0, 1, 0, 1]
-
-    virtual_shape_id = pybullet.createVisualShape(shapeType=pybullet.GEOM_SPHERE,
-                                                  radius=marker_radius,
-                                                  rgbaColor=col)
-    body_id =  pybullet.createMultiBody(baseMass=0,
-                                  baseCollisionShapeIndex=-1,
-                                  baseVisualShapeIndex=virtual_shape_id,
-                                  basePosition=[0,0,0],
-                                  useMaximalCoordinates=True)
-    markers.append(body_id)
-
-  return markers
 
 def get_joint_limits(robot):
   num_joints = pybullet.getNumJoints(robot)
@@ -255,7 +232,7 @@ def retarget_pose(robot, default_pose, ref_joint_pos):
 def update_camera(robot):
   base_pos = np.array(pybullet.getBasePositionAndOrientation(robot)[0])
   [yaw, pitch, dist] = pybullet.getDebugVisualizerCamera()[8:11]
-  yaw, pitch, dist = 0,-15,2.0
+  yaw, pitch, dist = 45,-15,2.0
   pybullet.resetDebugVisualizerCamera(dist, yaw, pitch, base_pos)
   return
 
@@ -356,7 +333,8 @@ def main():
     pybullet.removeBody(robot)
     
     manipulation_motion = np.repeat(np.reshape(config.DEFAULT_ARM_POSE,(1,8)), repeats=retarget_frames_locomotion.shape[0], axis=0)
-    retarget_frames_sum =np.concatenate((retarget_frames_locomotion, manipulation_motion), axis=-1)
+    manipulation_motion = np.load('retarget_motion/retarget_data/144_21/manipulator_pose.npy')
+    # retarget_frames_sum =np.concatenate((retarget_frames_locomotion, manipulation_motion), axis=-1)
 
     robot = pybullet.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
 
@@ -364,16 +342,22 @@ def main():
 
     f = 0
     num_frames = joint_pos_data.shape[0]
+    num_manipulator_frames = manipulation_motion.shape[0]
+
+
 
     for repeat in range (5*num_frames):
       time_start = time.time()
 
       f_idx = f % num_frames
+      f_m_idx = f % num_manipulator_frames
       print("Frame {:d}".format(f_idx))
 
-      pose = retarget_frames_sum[f_idx]
+      loco_pose = retarget_frames_locomotion[f_idx]
+      mani_pose = manipulation_motion[f_m_idx]
+   
 
-      set_pose(robot, pose)
+      set_pose(robot,np.concatenate([ loco_pose, mani_pose]))
 
       update_camera(robot)
       p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)

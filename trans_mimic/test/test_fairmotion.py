@@ -42,7 +42,9 @@ class motion_viewer(MocapViewer):
         ]
         for i in range(len(self.motions)):
             motion_ops.translate(self.motions[i], [x_offset * i, 0, 0])
-        
+
+
+
         self.cam = camera.Camera(
             pos=np.array(camera_position),
             origin=np.array(camera_origin),
@@ -84,3 +86,26 @@ class motion_viewer(MocapViewer):
                     slice=8,
                 )
 
+def view_demo():
+    bvh_motion_dir = ['./CMU_mocap/01/01_01_poses.bvh']
+    # load motion
+    viewer = motion_viewer(file_names = bvh_motion_dir)
+
+
+    motion_1 = viewer.motions[0]
+    # here I take the first pose of the motion
+    pose = motion_1.get_pose_by_frame(0)
+    T = pose.get_root_transform()
+    init_r, init_p = conversions.T2Rp(T)
+
+    # I output the quternion of the first frame which should be pointing forward
+    # which should be around (0,0,0,1). However, it does not output that
+    print(conversions.R2Q(init_r))
+
+
+    viewer.run()
+
+
+
+if __name__ == '__main__':
+    view_demo()

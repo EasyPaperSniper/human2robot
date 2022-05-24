@@ -13,7 +13,9 @@ import torch.nn as nn
 import learning.module as Module
 from learning.trans_mimic import Trans_mimic
 from trans_mimic.utilities.storage import Motion_dataset
-from trans_mimic.utilities.helper import tensorboard_launcher
+
+
+
 
 def main():
     exp_index = 0
@@ -25,27 +27,18 @@ def main():
         pass
 
     # define dataset
-    motion_dataset = Motion_dataset(batch_size=64)
+    motion_dataset = Motion_dataset()
     motion_dataset.load_dataset_h('./trans_mimic/data/motion_dataset/human_data.npy')
     motion_dataset.load_dataset_r('./trans_mimic/data/motion_dataset/dog_retgt_data.npy')
     hu_vec_dim, rob_vec_dim = motion_dataset.obs_dim_h, motion_dataset.obs_dim_r
 
     # define transfer function & discriminator
-    trans_func = Module.Trans_func(Module.MLP([512, 512], nn.LeakyReLU, hu_vec_dim, rob_vec_dim), device)
-    discriminator = Module.Discriminator( Module.MLP([512, 512], nn.LeakyReLU, rob_vec_dim, 2), device)
+    weight_path = './trans_mimic/data/training_result/exp_0/full_net.pt'
+    trans_func = Module.MLP([512, 512], nn.LeakyReLU, hu_vec_dim, rob_vec_dim)
+    trans_func.load_state_dict(torch.load(weight_path, map_location=torch.device('cpu'))['trans_func_state_dict'])
 
-    tensorboard_launcher(save_path + "/..") 
 
-    # define transmimic
-    trans_mimic = Trans_mimic(trans_func=trans_func, discriminator = discriminator,dataset=motion_dataset, log_dir = save_path)
-
-    # train stuff
-    trans_mimic.train(num_update=1e5, log_freq=100)
-
-    torch.save({
-            'trans_func_state_dict': trans_func.architecture.state_dict(),
-            'discriminator_state_dict': discriminator.architecture.state_dict(),
-        }, save_path+"/full_net.pt")
+    
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,7 @@
+import math
+
+HU_HIS_LEN = 6
+HU_FU_LEN = 5
+ROB_FU_LEN = 2
+HUMAN_LEG_HEIGHT = 0.96
+ROBOT_HEIGHT = 0.55
