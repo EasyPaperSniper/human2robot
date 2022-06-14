@@ -8,7 +8,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from trans_mimic.utilities import learning_constant as learn_const
+from trans_mimic.utilities import constant as learn_const
 
 #TODO: MANN need to be ensure working
 #TODO: Save data load data
@@ -20,7 +20,7 @@ class Trans_mimic():
                 trans_func,
                 discriminator,
                 dataset,
-                learning_rate = 1e-4,
+                learning_rate = 1e-5,
                 is_train=True,
                 device = 'cpu',
                 log_dir=None,
@@ -36,8 +36,7 @@ class Trans_mimic():
 
         self.trans_optimizer = optim.Adam([*self.trans_func.parameters()], lr=learning_rate)
         self.dis_optimizer = optim.Adam([*self.discriminator.parameters()], lr=learning_rate)
-        self.dis_loss_func = nn.CrossEntropyLoss()
-        self.adv_loss_func = nn.LogSoftmax()
+        self.gan_loss_func = nn.BCEWithLogitsLoss()
         self.eng_loss_func = nn.MSELoss()
 
 
@@ -48,50 +47,70 @@ class Trans_mimic():
 
 
     def train(self, num_update=1e5, log_freq=100):
+        dis_update, trans_update = 0, 0
+        real_vec = torch.tensor([[1.0,0.0]]*self.dataset.batch_size,device=self.device)
+        fake_vec = torch.tensor([[0.0,1.0]]*self.dataset.batch_size,device=self.device)
 
+        
         for i in range(int(num_update)):
-            # sample human input
-            input_traj_torch = self.dataset.sample_data_h()
-            predict_robot_state = self.trans_func.predict(input_traj_torch)
-            real_vec = torch.tensor([[1.0,0.0]]*self.dataset.batch_size,device=self.device)
-            fake_vec = torch.tensor([[0.0,1.0]]*self.dataset.batch_size,device=self.device)
+            for j in range(50):
+                # update discriminator
+                input_traj_torch = self.dataset.sample_data_h()
+                sampled_robot_state = self.dataset.sample_data_r()
+                predict_robot_state_ = self.trans_func.predict(input_traj_torch).detach()
+                loss_D_real = self.gan_loss_func(self.discriminator.predict(sampled_robot_state), real_vec)
+                loss_D_fake = self.gan_loss_func(self.discriminator.predict(predict_robot_state_), fake_vec)
+                dis_loss = (loss_D_real + loss_D_fake) * 0.5
+                self.dis_optimizer.zero_grad()
+                dis_loss.backward()
+                self.dis_optimizer.step()
+                dis_update += 1
 
-            # loss function
-            adv_loss = - self.adv_loss_func(self.discriminator.predict(predict_robot_state)*real_vec).sum()
-            CoM_pos_loss,CoM_ori_loss,EE_loss = self.engineer_loss_func(input_traj_torch, predict_robot_state)
+                if (j+1)%10==0:
+                    self.writer.add_scalar('trans_mimic/Dis_loss', dis_loss.item(), dis_update)
 
-            total_loss = 0*adv_loss + (CoM_pos_loss + CoM_ori_loss + EE_loss)
-            self.trans_optimizer.zero_grad()
-            total_loss.backward()
-            self.trans_optimizer.step()
 
-            # update discriminator
-            sampled_robot_state = self.dataset.sample_data_r()
-            predict_robot_state_ = self.trans_func.predict(input_traj_torch)
-            dis_loss = self.dis_loss_func(self.discriminator.predict(sampled_robot_state), real_vec) + self.dis_loss_func(self.discriminator.predict(predict_robot_state_), fake_vec)
-            self.dis_optimizer.zero_grad()
-            dis_loss.backward()
-            self.dis_optimizer.step()
+            val_loss = self.gen_validation_loss()
+            self.writer.add_scalar('trans_mimic/Val_loss', val_loss.item(), dis_update)
 
-            if i % log_freq==0:
-                self.log({'Adv_loss': adv_loss.item(),
-                        'CoM_pos_loss': CoM_pos_loss.item(),
-                        'CoM_ori_loss': CoM_ori_loss.item(),
-                        'EE_loss': EE_loss.item(),
-                        'Engineer_loss':(CoM_pos_loss + CoM_ori_loss + EE_loss).item(),
-                        'Total_loss': total_loss.item(),
-                        'Dis_loss': dis_loss.item(),
-                        'step': i})
 
-        self.log({'Adv_loss': adv_loss.item(),
-                        'CoM_pos_loss': CoM_pos_loss.item(),
-                        'CoM_ori_loss': CoM_ori_loss.item(),
-                        'EE_loss': EE_loss.item(),
-                        'Engineer_loss':(CoM_pos_loss + CoM_ori_loss + EE_loss).item(),
-                        'Total_loss': total_loss.item(),
-                        'Dis_loss': dis_loss.item(),
-                        'step': i})
+            for j in range(50):
+                # sample human input
+                input_traj_torch, input_traj_torch_  = self.dataset.sample_data_h_plus()
+                # input_traj_torch, tgt_rob_traj = self.dataset.sample_god()
+                predict_robot_state, predict_robot_state_ = self.trans_func.predict(input_traj_torch), self.trans_func.predict(input_traj_torch_).detach()
+                sampled_robot_state = self.dataset.sample_data_r()
 
+                # loss function
+                adv_loss = self.gan_loss_func(self.discriminator.predict(predict_robot_state), real_vec)
+                CoM_pos_loss,CoM_ori_loss,EE_loss = self.engineer_loss_func(input_traj_torch, predict_robot_state)
+                eng_loss = CoM_pos_loss*1 + CoM_ori_loss*1 + EE_loss*0
+                # eng_loss = self.eng_loss_func(tgt_rob_traj, predict_robot_state)
+                const_loss = self.prediction_consist_func(predict_robot_state, predict_robot_state_ )
+
+                total_loss =  1 * adv_loss  + 10 * eng_loss + 1 * const_loss
+                self.trans_optimizer.zero_grad()
+                total_loss.backward()
+                self.trans_optimizer.step()
+                trans_update += 1
+
+                if (j+1)%10==0:
+                    self.writer.add_scalar('trans_mimic/Adv_loss', adv_loss.item(), trans_update)
+                    self.writer.add_scalar('trans_mimic/Eng_loss', eng_loss.item(), trans_update)
+
+
+            
+
+    def gen_validation_loss(self,):
+        real_vec = torch.tensor([[1.0,0.0]]*self.dataset.batch_size,device=self.device)
+        fake_vec = torch.tensor([[0.0,1.0]]*self.dataset.batch_size,device=self.device)
+        val_robot_state = self.dataset.sample_data_r(train=False)
+        val_input_traj_torch = self.dataset.sample_data_h(train=False)
+        val_predict_robot_state_ = self.trans_func.predict(val_input_traj_torch)
+        loss_D_real = self.gan_loss_func(self.discriminator.predict(val_robot_state), real_vec)
+        loss_D_fake = self.gan_loss_func(self.discriminator.predict(val_predict_robot_state_), fake_vec)
+        val_loss = 0.5 * (loss_D_real + loss_D_fake)
+        return val_loss
 
 
     def engineer_loss_func(self, human_traj, predicted_robot_traj):
@@ -100,20 +119,27 @@ class Trans_mimic():
         
         # CoM Pos CoM Ori loss
         CoM_pos_loss = self.eng_loss_func(unnorm_human_traj[:,0]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,0]/learn_const.ROBOT_HEIGHT) +\
-                            self.eng_loss_func(unnorm_human_traj[:,215:218]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,17:20]/learn_const.ROBOT_HEIGHT) +\
-                                self.eng_loss_func(unnorm_human_traj[:,246:249]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,36:39]/learn_const.ROBOT_HEIGHT)
+                            self.eng_loss_func(unnorm_human_traj[:,227:230]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,17:20]/learn_const.ROBOT_HEIGHT) +\
+                                0*self.eng_loss_func(unnorm_human_traj[:,260:263]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,38:41]/learn_const.ROBOT_HEIGHT)
 
         CoM_ori_loss = self.eng_loss_func(unnorm_human_traj[:,1:5], unnorm_robot_traj[:,1:5]) +\
-                            self.eng_loss_func(unnorm_human_traj[:,218:222], unnorm_robot_traj[:,20:24]) +\
-                                self.eng_loss_func(unnorm_human_traj[:,248:252], unnorm_robot_traj[:,39:43])
+                            self.eng_loss_func(unnorm_human_traj[:,230:236], unnorm_robot_traj[:,20:26]) +\
+                                0*self.eng_loss_func(unnorm_human_traj[:,263:269], unnorm_robot_traj[:,41:47])
 
         # EE loss
-        EE_loss = self.eng_loss_func(unnorm_human_traj[:,14:17]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\
-                    self.eng_loss_func(unnorm_human_traj[:,26:29]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,8:11]/learn_const.ROBOT_HEIGHT) +\
-                    self.eng_loss_func(unnorm_human_traj[:,26:29]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,11:14]/learn_const.ROBOT_HEIGHT) +\
-                    self.eng_loss_func(unnorm_human_traj[:,14:17]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,14:17]/learn_const.ROBOT_HEIGHT)
+        EE_loss = self.eng_loss_func((unnorm_human_traj[:,14:17]-unnorm_human_traj[:,5:8])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\
+                    self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,8:11]/learn_const.ROBOT_HEIGHT) +\
+                    self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,11:14]/learn_const.ROBOT_HEIGHT) +\
+                    self.eng_loss_func((unnorm_human_traj[:,14:17] - unnorm_human_traj[:,5:8])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,14:17]/learn_const.ROBOT_HEIGHT)
 
         return CoM_pos_loss,CoM_ori_loss,EE_loss
+
+
+    def prediction_consist_func(self,predict_robot_state, predict_robot_state_ ):
+        joint_const_loss = 0
+        for i in range(0,learn_const.ROB_FU_LEN):
+            joint_const_loss +=self.eng_loss_func(predict_robot_state_[:,5+i*21:17+i*21], predict_robot_state[:,26+i*21:38+i*21])
+        return joint_const_loss
 
 
     def log(self, variable):
@@ -129,3 +155,4 @@ class Trans_mimic():
     @property
     def output_mean_std(self):
         return [self.dataset.dataset_mean_r, self.dataset.dataset_std_r]
+

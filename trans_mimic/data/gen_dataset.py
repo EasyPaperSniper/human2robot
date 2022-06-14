@@ -17,21 +17,15 @@ import retarget_motion.retarget_motions_locomotion as retgt_motion
 import retarget_motion.retarget_config_spot as config
 from trans_mimic.utilities import motion_util, pose3d
 from trans_mimic.robots.spot import foot_position_in_hip_frame
+import trans_mimic.utilities.env_wrapper as env_wrapper
+import trans_mimic.utilities.constant as const
 
 
-HU_HIS_LEN = 6
-HU_FU_LEN = 5
-ROB_FU_LEN = 2
-INV_DEFAULT_ROT = np.array([[0,0,1],[1,0,0],[0,1,0]])
-DEFAULT_ROT = np.array([[0,1,0],[0,0,1],[1,0,0]])
-HUMAN_JOINT_NAMES = ['lhip', 'lknee', 'lankle', 'ltoe',
-                    'rhip', 'rknee', 'rankle', 'rtoe',
-                    'lowerback', 'upperback', 'chest', 'lowerneck', 'upperneck',
-                    'lclavicle', 'lshoulder' , 'lelbow', 'lwrist',
-                    'rclavicle', 'rshoulder' , 'relbow', 'rwrist',]
 
 
-human_files = ['01_01', '02_01']
+human_files = ['01_01']
+human_files_2 = ['01_01','02_01','02_02','02_03','49_02','74_03']
+
 robot_files = [
   ["retarget_motion/data/dog_walk00_joint_pos.txt",160,560],
   ["retarget_motion/data/dog_walk01_joint_pos.txt",360,1060 ],
@@ -44,29 +38,6 @@ robot_files = [
   ["retarget_motion/data/dog_walk09_joint_pos.txt",210,2010 ],
 ]
 
-def gen_delta_state(motion, tgt_frame, cur_pos_world, inv_cur_heading):
-    delta_vec = []
-    cur_pose = motion.get_pose_by_frame(tgt_frame)
-    T = cur_pose.get_root_transform()
-    tgt_rot_rob, tgt_pos_world = conversions.T2Rp(T)
-    tgt_ori_world = np.dot(tgt_rot_rob, DEFAULT_ROT)
-    tgt_ori_quat = motion_util.standardize_quaternion(conversions.R2Q(tgt_ori_world))
-
-    tgt_root_rot = transformations.quaternion_multiply(inv_cur_heading, tgt_ori_quat)
-    tgt_root_rot = motion_util.standardize_quaternion(tgt_root_rot)
-
-    delta_pos = pose3d.QuaternionRotatePoint(cur_pos_world - tgt_pos_world, inv_cur_heading)
-    delta_vec.append(delta_pos[0:2])
-    delta_vec.append([tgt_pos_world[2]])
-    delta_vec.append(tgt_root_rot)
-
-    for joint_index in range(8):
-        joint_T = motion_util.T_in_root(HUMAN_JOINT_NAMES[joint_index], cur_pose)
-        _, joint_pos_local = conversions.T2Rp(joint_T)
-        delta_vec.append(np.dot(INV_DEFAULT_ROT,joint_pos_local))
-
-    return delta_vec
-
 
 
 
@@ -78,46 +49,13 @@ def gen_human_dataset(motion_files):
     human_dataset = []
 
     for motion in viewer.motions:
-        pose = motion.get_pose_by_frame(0)
-        T = pose.get_root_transform()
-        root_ori_world, root_pos_world = conversions.T2Rp(T)
 
         total_frames = motion.num_frames()
         for i in range(total_frames):
-            obs = []
+            obs = env_wrapper.gen_human_input(motion, i)
+            human_dataset.append(obs[0])
 
-            cur_pose = motion.get_pose_by_frame(i)
-            T = cur_pose.get_root_transform()
-            root_rot, cur_pos_world = conversions.T2Rp(T)
-            root_ori_world = np.dot(root_rot, DEFAULT_ROT)
-            root_ori_quat = motion_util.standardize_quaternion(conversions.R2Q(root_ori_world))
-            heading, heading_q = motion_util.calc_heading(root_ori_quat), motion_util.calc_heading_rot(root_ori_quat)
-            inv_heading_rot = transformations.quaternion_about_axis(-heading, [0, 0, 1])
-            cur_root_rot = transformations.quaternion_multiply(inv_heading_rot, root_ori_quat)
-            cur_root_rot = motion_util.standardize_quaternion(cur_root_rot)
-
-            obs.append([cur_pos_world[2]]) # root height
-            obs.append(cur_root_rot)    # rot in current frame
-            for joint_index in range(8):
-                joint_T = motion_util.T_in_root(HUMAN_JOINT_NAMES[joint_index], cur_pose)
-                _, joint_pos_local = conversions.T2Rp(joint_T)
-                obs.append(np.dot(INV_DEFAULT_ROT,joint_pos_local))
-
-
-            for j in np.arange(-HU_HIS_LEN, HU_FU_LEN+1):
-                if j==0:
-                    continue
-                elif i+j <0:
-                    frame_idx = 0 
-                elif i+j > total_frames-1:
-                    frame_idx = total_frames-1
-                else:
-                    frame_idx = i+j
-
-                delta_vec = gen_delta_state(motion, frame_idx, cur_pos_world, inv_heading_rot)
-                obs = np.concatenate([obs, delta_vec])
-            human_dataset.append(np.concatenate(obs))
-    
+        print(np.shape(obs[0]))
     save_path = './trans_mimic/data/motion_dataset'
     try:
         os.mkdir(save_path)
@@ -161,7 +99,7 @@ def gen_robot_dataset(motion_files):
         manipulation_motion = np.repeat(np.reshape(config.DEFAULT_ARM_POSE,(1,8)), repeats=retarget_frames_locomotion.shape[0], axis=0)
         num_frames = joint_pos_data.shape[0]
 
-        for i in range(num_frames-ROB_FU_LEN):
+        for i in range(0,num_frames- const.ROB_FU_LEN*2,2):
             obs = []
             # cur info
             cur_root_height = retarget_frames_locomotion[i,2]
@@ -178,21 +116,28 @@ def gen_robot_dataset(motion_files):
                                 foot_position_in_hip_frame(cur_j_pos[3:6],1),
                                 foot_position_in_hip_frame(cur_j_pos[6:9],-1),
                                 foot_position_in_hip_frame(cur_j_pos[9:12],1),]
-            obs.append([cur_root_height])
+            obs.append([cur_root_height]) 
+            # obs.append([0,0])
+            # obs.append([1,0])
             obs.append(cur_root_ori_)
             obs = obs + cur_foot_in_hip
 
 
-            # nxt info
-            for step in range(1,ROB_FU_LEN+1):
-                nxt_root_height = retarget_frames_locomotion[i+step,2]
-               
-                nxt_root_ori = retarget_frames_locomotion[i+step,3:7]
+            # nxt info very redundent implementation
+            for mini_step in range(1, const.ROB_FU_LEN+1):
+                step = mini_step*2
+                nxt_root_height = retarget_frames_locomotion[i+step,2] 
+                
                 nxt_root_pos = retarget_frames_locomotion[i+step,0:3]
+                delta_root_pos = nxt_root_pos - cur_root_pos
+                delta_root_pos = pose3d.QuaternionRotatePoint(delta_root_pos, inv_heading_rot)
 
-                nxt_root_pos_ = nxt_root_pos - cur_root_pos
-                nxt_root_pos_ = pose3d.QuaternionRotatePoint(nxt_root_pos_, inv_heading_rot)
-                nxt_root_ori_ = transformations.quaternion_multiply(inv_heading_rot, nxt_root_ori)
+                nxt_root_ori = retarget_frames_locomotion[i+step,3:7]
+                nxt_heading = motion_util.calc_heading(nxt_root_ori)
+                delta_root_ori = nxt_heading - cur_heading
+
+                nxt_inv_heading_rot =  transformations.quaternion_about_axis(-nxt_heading, [0, 0, 1])
+                nxt_root_ori_ = transformations.quaternion_multiply(nxt_inv_heading_rot, nxt_root_ori)
                 nxt_root_ori_ = motion_util.standardize_quaternion(nxt_root_ori_)
 
                 nxt_j_pos =  retarget_frames_locomotion[i+step, 7:19]
@@ -200,13 +145,16 @@ def gen_robot_dataset(motion_files):
                                 foot_position_in_hip_frame(nxt_j_pos[3:6],1),
                                 foot_position_in_hip_frame(nxt_j_pos[6:9],-1),
                                 foot_position_in_hip_frame(nxt_j_pos[9:12],1),]
-                obs.append(nxt_root_pos_[0:2])
-                obs.append([nxt_root_height])
-                obs.append(nxt_root_ori_)
-                obs = obs + nxt_foot_in_hip
-            
-            robot_dataset.append(np.concatenate(obs))
+                obs.append([nxt_root_height]) # root height in world frame
+                obs.append(delta_root_pos[0:2]) # delta position in cur frame
+                obs.append([np.cos(delta_root_ori), np.sin(delta_root_ori)]) # delta heading in cur frame
+                obs.append(nxt_root_ori_) # orientation in robot next local frame
+                obs = obs + nxt_foot_in_hip # foot pos in robot's body frame
 
+  
+            # state dim (1+2+2+4+12) * length
+            robot_dataset.append(np.concatenate(obs))
+        print(np.shape(np.concatenate(obs)))
     
     save_path = './trans_mimic/data/motion_dataset'
     try:
@@ -218,6 +166,108 @@ def gen_robot_dataset(motion_files):
     pybullet.disconnect()
 
 
+def gen_robot_eng_dataset(human_files):
+    import retarget_motion.retarget_motions_manipulation as eng_retgt
+
+    bvh_motion_dir = []
+    for file_dir in human_files:
+        bvh_motion_dir.append('./CMU_mocap/'+file_dir.split('_')[0]+'/'+file_dir+'_poses.bvh')
+    viewer = motion_viewer(file_names = bvh_motion_dir, axis_up = 'z', axis_face = 'y',)
+
+    p = pybullet
+    p.connect(p.GUI)
+    p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
+    # p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
+    pybullet.setAdditionalSearchPath(pd.getDataPath())
+
+    robot_dataset = []
+
+    for i in range(len(viewer.motions)):
+        pybullet.resetSimulation()
+        pybullet.setGravity(0, 0, 0)
+        # motion_ops.translate(viewer.motions[i], trans)
+        ground = pybullet.loadURDF(eng_retgt.GROUND_URDF_FILENAME)
+        robot = pybullet.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
+
+
+        rwrist_traj, foot_traj, CoM_traj, contact_traj = eng_retgt.process_human_data(viewer.motions[i])
+        robot_com_pos = eng_retgt.retarget_com_pose(CoM_traj)
+        # manipulator_pose = eng_retgt.retarget_wristpose(robot,rwrist_traj)
+        robot_leg_joint_pose =  eng_retgt.retarget_foot_pose(robot, foot_traj, robot_com_pos, contact_traj)
+        num_frames = rwrist_traj.shape[0]
+
+        
+        for i in range(0,num_frames- const.ROB_FU_LEN):
+            obs = []
+            # cur info
+            cur_root_height = robot_com_pos[i,2]
+            cur_root_pos = robot_com_pos[i,0:3]
+            cur_root_ori = robot_com_pos[i,3:7]
+            
+            cur_heading = motion_util.calc_heading(cur_root_ori)
+            inv_heading_rot = transformations.quaternion_about_axis(-cur_heading, [0, 0, 1])
+            cur_root_ori_ = transformations.quaternion_multiply(inv_heading_rot, cur_root_ori)
+            cur_root_ori_ = motion_util.standardize_quaternion(cur_root_ori_)
+
+            cur_j_pos = robot_leg_joint_pose[i, 0:12]
+            cur_foot_in_hip = [foot_position_in_hip_frame(cur_j_pos[0:3],-1),
+                                foot_position_in_hip_frame(cur_j_pos[3:6],1),
+                                foot_position_in_hip_frame(cur_j_pos[6:9],-1),
+                                foot_position_in_hip_frame(cur_j_pos[9:12],1),]
+            obs.append([cur_root_height]) 
+            # obs.append([0,0])
+            # obs.append([1,0])
+            obs.append(cur_root_ori_)
+            obs = obs + cur_foot_in_hip
+
+            # nxt info very redundent implementation
+            for mini_step in range(1, const.ROB_FU_LEN+1):
+                step = mini_step
+                nxt_root_height = robot_com_pos[i+step,2] 
+                
+                nxt_root_pos = robot_com_pos[i+step,0:3]
+                delta_root_pos = nxt_root_pos - cur_root_pos
+                delta_root_pos = pose3d.QuaternionRotatePoint(delta_root_pos, inv_heading_rot)
+
+                nxt_root_ori = robot_com_pos[i+step,3:7]
+                nxt_heading = motion_util.calc_heading(nxt_root_ori)
+                delta_root_ori = nxt_heading - cur_heading
+
+                nxt_inv_heading_rot =  transformations.quaternion_about_axis(-nxt_heading, [0, 0, 1])
+                nxt_root_ori_ = transformations.quaternion_multiply(nxt_inv_heading_rot, nxt_root_ori)
+                nxt_root_ori_ = motion_util.standardize_quaternion(nxt_root_ori_)
+
+                nxt_j_pos =  robot_leg_joint_pose[i+step, 0:12]
+                nxt_foot_in_hip = [foot_position_in_hip_frame(nxt_j_pos[0:3],-1),
+                                foot_position_in_hip_frame(nxt_j_pos[3:6],1),
+                                foot_position_in_hip_frame(nxt_j_pos[6:9],-1),
+                                foot_position_in_hip_frame(nxt_j_pos[9:12],1),]
+                obs.append([nxt_root_height]) # root height in world frame
+                obs.append(delta_root_pos[0:2]) # delta position in cur frame
+                obs.append([np.cos(delta_root_ori), np.sin(delta_root_ori)]) # delta heading in cur frame
+                obs.append(nxt_root_ori_) # orientation in robot next local frame
+                obs = obs + nxt_foot_in_hip # foot pos in robot's body frame
+
+              # state dim (1+2+2+4+12) * length
+            robot_dataset.append(np.concatenate(obs))
+        print(np.shape(np.concatenate(obs)))
+    
+    save_path = './trans_mimic/data/motion_dataset'
+    try:
+        os.mkdir(save_path)
+    except:
+        pass
+    np.save(save_path+'/eng_retgt_data', np.array(robot_dataset))
+
+    pybullet.disconnect()
+
+
+
+
+
+
+
 if __name__ == '__main__':
-    gen_human_dataset(human_files)
+    # gen_human_dataset(human_files)
     # gen_robot_dataset(robot_files)
+    gen_robot_eng_dataset(human_files_2)

@@ -15,8 +15,9 @@ from learning.trans_mimic import Trans_mimic
 from trans_mimic.utilities.storage import Motion_dataset
 from trans_mimic.utilities.helper import tensorboard_launcher
 
+
 def main():
-    exp_index = 0
+    exp_index = 1
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:
@@ -27,7 +28,7 @@ def main():
     # define dataset
     motion_dataset = Motion_dataset(batch_size=64)
     motion_dataset.load_dataset_h('./trans_mimic/data/motion_dataset/human_data.npy')
-    motion_dataset.load_dataset_r('./trans_mimic/data/motion_dataset/dog_retgt_data.npy')
+    motion_dataset.load_dataset_r('./trans_mimic/data/motion_dataset/eng_retgt_data.npy')
     hu_vec_dim, rob_vec_dim = motion_dataset.obs_dim_h, motion_dataset.obs_dim_r
 
     # define transfer function & discriminator
@@ -40,7 +41,7 @@ def main():
     trans_mimic = Trans_mimic(trans_func=trans_func, discriminator = discriminator,dataset=motion_dataset, log_dir = save_path)
 
     # train stuff
-    trans_mimic.train(num_update=1e5, log_freq=100)
+    trans_mimic.train(num_update=5e2, log_freq=100)
 
     torch.save({
             'trans_func_state_dict': trans_func.architecture.state_dict(),

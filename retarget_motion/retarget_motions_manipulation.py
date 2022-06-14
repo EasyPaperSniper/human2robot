@@ -27,7 +27,7 @@ from pybullet_utils import transformations
 import pybullet
 import pybullet_data as pd
 
-import retarget_config_spot as config
+import retarget_motion.retarget_config_spot as config
 from retarget_motion.retarget_motions_locomotion import set_pose, update_camera
 from trans_mimic.robots.spot import foot_position_in_hip_frame_to_joint_angle, HIP_POS
 from trans_mimic.utilities.motion_viewers import pybullet_viewers
