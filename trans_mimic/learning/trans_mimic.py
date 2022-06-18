@@ -88,7 +88,7 @@ class Trans_mimic():
                 # eng_loss = self.eng_loss_func(tgt_rob_traj, predict_robot_state)
                 const_loss = self.prediction_consist_func(predict_robot_state, predict_robot_state_ )
 
-                total_loss =  1 * adv_loss  + 10 * eng_loss + 1 * const_loss
+                total_loss =  1 * adv_loss  + 10 * eng_loss + 0 * const_loss
                 self.trans_optimizer.zero_grad()
                 total_loss.backward()
                 self.trans_optimizer.step()
@@ -127,10 +127,10 @@ class Trans_mimic():
                                 0*self.eng_loss_func(unnorm_human_traj[:,263:269], unnorm_robot_traj[:,41:47])
 
         # EE loss
-        EE_loss = self.eng_loss_func((unnorm_human_traj[:,14:17]-unnorm_human_traj[:,5:8])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\
-                    self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,8:11]/learn_const.ROBOT_HEIGHT) +\
-                    self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,11:14]/learn_const.ROBOT_HEIGHT) +\
-                    self.eng_loss_func((unnorm_human_traj[:,14:17] - unnorm_human_traj[:,5:8])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,14:17]/learn_const.ROBOT_HEIGHT)
+        EE_loss = self.eng_loss_func((unnorm_human_traj[:,14:17]-unnorm_human_traj[:,5:8]-torch.tensor([0.15, -0.12, 0]))/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\
+                    self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20]-torch.tensor([0.15, 0.12, 0]))/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,8:11]/learn_const.ROBOT_HEIGHT) #+\
+                    # self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,11:14]/learn_const.ROBOT_HEIGHT) +\
+                    # self.eng_loss_func((unnorm_human_traj[:,14:17] - unnorm_human_traj[:,5:8])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,14:17]/learn_const.ROBOT_HEIGHT)
 
         return CoM_pos_loss,CoM_ori_loss,EE_loss
 

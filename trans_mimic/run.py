@@ -17,7 +17,7 @@ from trans_mimic.utilities.helper import tensorboard_launcher
 
 
 def main():
-    exp_index = 1
+    exp_index = 2
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:

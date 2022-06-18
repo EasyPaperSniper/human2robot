@@ -28,7 +28,7 @@ import trans_mimic.utilities.constant as const
 GROUND_URDF_FILENAME = "trans_mimic/robots/urdf/plane/plane.urdf"
 
 def main():
-    exp_index = 1
+    exp_index = 2
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:
@@ -50,7 +50,7 @@ def main():
 
     file_dirs = [
         [ '01_01',[0,0,0]],
-        # ['02_01',[1,1,0]],
+        # ['02_02',[1,1,0]],
         ]
     bvh_motion_dir = []
     for file_dir, trans in file_dirs:
