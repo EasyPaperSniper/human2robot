@@ -50,7 +50,7 @@ def main():
 
     file_dirs = [
         # [ '01_01',[0,0,0]],
-        ['07_01',[1,1,0]],
+        ['07_02',[1,1,0]],
         ]
     bvh_motion_dir = []
     for file_dir, trans in file_dirs:
@@ -59,7 +59,7 @@ def main():
 
                                                            
     p = pybullet
-    p.connect(p.GUI, options="--mp4=\"retarget_motion.mp4\" --mp4fps=60")
+    p.connect(p.GUI)
     p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
     pybullet.setAdditionalSearchPath(pd.getDataPath())
@@ -79,7 +79,7 @@ def main():
 
         cur_rob_root_state = np.concatenate([config.INIT_POS, config.INIT_ROT])
 
-        for f in range(num_frames*3):
+        for f in range(num_frames*10):
             time_start = time.time()
             f_idx = f % num_frames
 

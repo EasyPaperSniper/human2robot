@@ -79,8 +79,8 @@ def gen_human_input(motion, i):
             continue
         elif i+j <0:
             frame_idx = 0 
-        elif i+j > total_frames-1:
-            frame_idx = total_frames-1
+        # elif i+j > total_frames-1:
+        #     frame_idx = total_frames-1
         else:
             frame_idx = i+j
 

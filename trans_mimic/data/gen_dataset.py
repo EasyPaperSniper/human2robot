@@ -52,7 +52,7 @@ def gen_human_dataset(motion_files):
     for motion in viewer.motions:
 
         total_frames = motion.num_frames()
-        for i in range(total_frames):
+        for i in range(total_frames-const.HU_FU_LEN):
             obs = env_wrapper.gen_human_input(motion, i)
             human_dataset.append(obs[0])
 
@@ -141,16 +141,16 @@ def gen_robot_dataset(motion_files):
                 nxt_root_ori_ = transformations.quaternion_multiply(nxt_inv_heading_rot, nxt_root_ori)
                 nxt_root_ori_ = motion_util.standardize_quaternion(nxt_root_ori_)
 
-                nxt_j_pos =  retarget_frames_locomotion[i+step, 7:19]
-                nxt_foot_in_hip = [foot_position_in_hip_frame(nxt_j_pos[0:3],-1),
-                                foot_position_in_hip_frame(nxt_j_pos[3:6],1),
-                                foot_position_in_hip_frame(nxt_j_pos[6:9],-1),
-                                foot_position_in_hip_frame(nxt_j_pos[9:12],1),]
+                # nxt_j_pos =  retarget_frames_locomotion[i+step, 7:19]
+                # nxt_foot_in_hip = [foot_position_in_hip_frame(nxt_j_pos[0:3],-1),
+                #                 foot_position_in_hip_frame(nxt_j_pos[3:6],1),
+                #                 foot_position_in_hip_frame(nxt_j_pos[6:9],-1),
+                #                 foot_position_in_hip_frame(nxt_j_pos[9:12],1),]
                 obs.append([nxt_root_height]) # root height in world frame
                 obs.append(delta_root_pos[0:2]) # delta position in cur frame
                 obs.append([np.cos(delta_root_ori), np.sin(delta_root_ori)]) # delta heading in cur frame
                 obs.append(nxt_root_ori_) # orientation in robot next local frame
-                obs = obs + nxt_foot_in_hip # foot pos in robot's body frame
+                # obs = obs + nxt_foot_in_hip # foot pos in robot's body frame
 
   
             # state dim (1+2+2+4+12) * length

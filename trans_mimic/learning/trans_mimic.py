@@ -83,13 +83,13 @@ class Trans_mimic():
 
                 # loss function
                 adv_loss = self.gan_loss_func(self.discriminator.predict(predict_robot_state), real_vec)
-                CoM_pos_loss,CoM_ori_loss,EE_loss = self.engineer_loss_func(input_traj_torch, predict_robot_state)
+                # CoM_pos_loss,CoM_ori_loss,EE_loss = self.engineer_loss_func(input_traj_torch, predict_robot_state)
 
-                eng_loss = CoM_pos_loss*0 + CoM_ori_loss*1 + EE_loss*0
+                # eng_loss = CoM_pos_loss*0 + CoM_ori_loss*1 + EE_loss*0
                 # eng_loss = self.eng_loss_func(tgt_rob_traj, predict_robot_state)
-                const_loss = self.prediction_consist_func(predict_robot_state, predict_robot_state_ )
+                # const_loss = self.prediction_consist_func(predict_robot_state, predict_robot_state_ )
 
-                total_loss =  1 * adv_loss  + 0 * eng_loss + 0 * const_loss
+                total_loss =  1 * adv_loss # + 0 * eng_loss + 0 * const_loss
                 self.h2r_optimizer.zero_grad()
                 total_loss.backward()
                 self.h2r_optimizer.step()
@@ -97,7 +97,7 @@ class Trans_mimic():
 
                 if (j+1)%10==0:
                     self.writer.add_scalar('trans_mimic/Adv_loss', adv_loss.item(), trans_update)
-                    self.writer.add_scalar('trans_mimic/Eng_loss', eng_loss.item(), trans_update)
+                    # self.writer.add_scalar('trans_mimic/Eng_loss', eng_loss.item(), trans_update)
 
 
             
