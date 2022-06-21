@@ -28,7 +28,7 @@ import trans_mimic.utilities.constant as const
 GROUND_URDF_FILENAME = "trans_mimic/robots/urdf/plane/plane.urdf"
 
 def main():
-    exp_index = 2
+    exp_index = 3
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:
@@ -39,25 +39,25 @@ def main():
     # define dataset
     motion_dataset = Motion_dataset()
     motion_dataset.load_dataset_h('./trans_mimic/data/motion_dataset/human_data.npy')
-    motion_dataset.load_dataset_r('./trans_mimic/data/motion_dataset/eng_retgt_data.npy')
+    motion_dataset.load_dataset_r('./trans_mimic/data/motion_dataset/dog_retgt_data.npy')
     hu_vec_dim, rob_vec_dim = motion_dataset.obs_dim_h, motion_dataset.obs_dim_r
 
     # define transfer function & discriminator
     weight_path = save_path + '/full_net.pt'
     trans_func = Module.MLP([512, 512], nn.LeakyReLU, hu_vec_dim, rob_vec_dim)
-    trans_func.load_state_dict(torch.load(weight_path, map_location=torch.device('cpu'))['trans_func_state_dict'])
+    trans_func.load_state_dict(torch.load(weight_path, map_location=torch.device('cpu'))['gen_h2r_state_dict'])
 
 
     file_dirs = [
-        [ '01_01',[0,0,0]],
-        # ['02_02',[1,1,0]],
+        # [ '01_01',[0,0,0]],
+        ['07_01',[1,1,0]],
         ]
     bvh_motion_dir = []
     for file_dir, trans in file_dirs:
         bvh_motion_dir.append('./CMU_mocap/'+file_dir.split('_')[0]+'/'+file_dir+'_poses.bvh')
     viewer = motion_viewer(file_names = bvh_motion_dir, axis_up = 'z', axis_face = 'y',)
 
-
+                                                           
     p = pybullet
     p.connect(p.GUI, options="--mp4=\"retarget_motion.mp4\" --mp4fps=60")
     p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
@@ -79,7 +79,7 @@ def main():
 
         cur_rob_root_state = np.concatenate([config.INIT_POS, config.INIT_ROT])
 
-        for f in range(num_frames):
+        for f in range(num_frames*3):
             time_start = time.time()
             f_idx = f % num_frames
 

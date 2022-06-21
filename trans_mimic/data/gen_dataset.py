@@ -24,7 +24,8 @@ import trans_mimic.utilities.constant as const
 
 
 human_files = ['01_01','02_01','02_02','02_03','49_02','74_03']
-human_files_2 = ['01_01','02_01','02_02','02_03','49_02','74_03']
+human_files = ['02_01','02_02','07_01','07_02','07_03','07_04','07_05','09_01', '09_02', '09_03', '09_04', '09_05']
+# human_files_2 = ['01_01','02_01','02_02','02_03','49_02','74_03']
 
 robot_files = [
   ["retarget_motion/data/dog_walk00_joint_pos.txt",160,560],
@@ -269,5 +270,5 @@ def gen_robot_eng_dataset(human_files):
 
 if __name__ == '__main__':
     # gen_human_dataset(human_files)
-    # gen_robot_dataset(robot_files)
+    gen_robot_dataset(robot_files)
     # gen_robot_eng_dataset(human_files_2)

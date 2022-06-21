@@ -100,9 +100,9 @@ class Discriminator:
         return self.architecture.input_shape
 
 
-class Trans_func:
+class Generator:
     def __init__(self, architecture, device='cpu'):
-        super(Trans_func, self).__init__()
+        super(Generator, self).__init__()
         self.architecture = architecture
         self.architecture.to(device)
 

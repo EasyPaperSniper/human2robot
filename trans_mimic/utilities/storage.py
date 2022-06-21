@@ -68,7 +68,6 @@ class Motion_dataset():
             index = np.random.randint(self.train_num_r, self.buffer_size_r, size=(self.batch_size))
         return self.torchset_norm_h[index], self.torchset_norm_r[index]
 
-
     # def sample_data_h(self,train=True, test_batch = 1):
     #     if train:
     #         index_range, batch_size = self.train_num_h, self.batch_size
