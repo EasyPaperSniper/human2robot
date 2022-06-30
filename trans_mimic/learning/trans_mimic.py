@@ -74,7 +74,7 @@ class Trans_mimic():
             self.writer.add_scalar('trans_mimic/Val_loss', val_loss.item(), dis_update)
 
 
-            for j in range(100):
+            for j in range(50):
                 # sample human input
                 input_traj_torch, input_traj_torch_  = self.dataset.sample_data_h_plus()
                 # input_traj_torch, tgt_rob_traj = self.dataset.sample_god()
@@ -85,11 +85,11 @@ class Trans_mimic():
                 adv_loss = self.gan_loss_func(self.discriminator.predict(predict_robot_state), real_vec)
                 # CoM_pos_loss,CoM_ori_loss,EE_loss = self.engineer_loss_func(input_traj_torch, predict_robot_state)
 
-                # eng_loss = CoM_pos_loss*0 + CoM_ori_loss*1 + EE_loss*0
+                # eng_loss = CoM_pos_loss*1 + CoM_ori_loss*1 + EE_loss*0
                 # eng_loss = self.eng_loss_func(tgt_rob_traj, predict_robot_state)
                 # const_loss = self.prediction_consist_func(predict_robot_state, predict_robot_state_ )
 
-                total_loss =  1 * adv_loss # + 0 * eng_loss + 0 * const_loss
+                total_loss =  1 * adv_loss # + 0 * eng_loss #+ 0 * const_loss
                 self.h2r_optimizer.zero_grad()
                 total_loss.backward()
                 self.h2r_optimizer.step()
@@ -120,12 +120,12 @@ class Trans_mimic():
         
         # CoM Pos CoM Ori loss
         CoM_pos_loss = self.eng_loss_func(unnorm_human_traj[:,0]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,0]/learn_const.ROBOT_HEIGHT) +\
-                            self.eng_loss_func(unnorm_human_traj[:,227:230]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,17:20]/learn_const.ROBOT_HEIGHT) +\
-                                0*self.eng_loss_func(unnorm_human_traj[:,260:263]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,38:41]/learn_const.ROBOT_HEIGHT)
+                            self.eng_loss_func(unnorm_human_traj[:,227:230]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\
+                                0*self.eng_loss_func(unnorm_human_traj[:,260:263]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,14:17]/learn_const.ROBOT_HEIGHT)
 
         CoM_ori_loss = self.eng_loss_func(unnorm_human_traj[:,1:5]*0, unnorm_robot_traj[:,1:5]) +\
-                            self.eng_loss_func(unnorm_human_traj[:,230:236]*0, unnorm_robot_traj[:,20:26]) +\
-                                0*self.eng_loss_func(unnorm_human_traj[:,263:269], unnorm_robot_traj[:,41:47])
+                            self.eng_loss_func(unnorm_human_traj[:,230:236]*0, unnorm_robot_traj[:,8:14]) +\
+                                0*self.eng_loss_func(unnorm_human_traj[:,263:269], unnorm_robot_traj[:,17:23])
 
         # EE loss
         EE_loss = self.eng_loss_func((unnorm_human_traj[:,14:17]-unnorm_human_traj[:,5:8]-torch.tensor([0.15, -0.12, 0]).to(self.device))/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\

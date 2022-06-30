@@ -28,7 +28,7 @@ import trans_mimic.utilities.constant as const
 GROUND_URDF_FILENAME = "trans_mimic/robots/urdf/plane/plane.urdf"
 
 def main():
-    exp_index = 3
+    exp_index = 4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:
@@ -50,7 +50,7 @@ def main():
 
     file_dirs = [
         # [ '01_01',[0,0,0]],
-        ['07_02',[1,1,0]],
+        ['02_01',[1,1,0]],
         ]
     bvh_motion_dir = []
     for file_dir, trans in file_dirs:
@@ -73,7 +73,8 @@ def main():
         robot = pybullet.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
         set_pose(robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE, config.DEFAULT_ARM_POSE]))
 
-        num_frames = viewer.motions[i].num_frames()
+        total_frames = viewer.motions[i].num_frames()
+        num_frames = total_frames-const.HU_FU_LEN
         bullet_view = pybullet_viewers((viewer.motions[i]).poses[0])
         motion = viewer.motions[i]
 
@@ -82,11 +83,11 @@ def main():
         for f in range(num_frames*10):
             time_start = time.time()
             f_idx = f % num_frames
-
-            human_input = (env_wrapper.gen_human_input(motion, f_idx) - motion_dataset.dataset_mean_h)/motion_dataset.dataset_std_h
+            human_input = (env_wrapper.gen_human_input(motion, f_idx)[0] - motion_dataset.dataset_mean_h)/motion_dataset.dataset_std_h
             rob_state_torch = trans_func.architecture(torch.from_numpy(np.float32(human_input)).cpu())
             rob_state = rob_state_torch.cpu().detach().numpy()[0] * motion_dataset.dataset_std_r + motion_dataset.dataset_mean_r
-            rob_state_ = motion_dataset.dataset_r[f_idx]
+            # rob_state = motion_dataset.dataset_norm_r[f_idx] * motion_dataset.dataset_std_r + motion_dataset.dataset_mean_r
+            rob_state = motion_dataset.dataset_r[f_idx]
     
 
             cur_rob_state, cur_rob_root_state = env_wrapper.decode_robot_state(rob_state, cur_rob_root_state)
@@ -94,7 +95,7 @@ def main():
 
             set_pose(robot, np.concatenate([cur_rob_state,config.DEFAULT_ARM_POSE]))
             bullet_view.set_maker_pose(pose = viewer.motions[i].poses[f_idx])
-            
+             
             update_camera(robot)
             p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
             

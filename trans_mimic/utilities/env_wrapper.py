@@ -24,6 +24,7 @@ import trans_mimic.utilities.constant as const
 def gen_delta_state(motion, tgt_frame, cur_pos_world, inv_cur_heading, heading):
     delta_vec = []
     cur_pose = motion.get_pose_by_frame(tgt_frame)
+
     T = cur_pose.get_root_transform()
     tgt_rot_rob, tgt_pos_world = conversions.T2Rp(T)
     tgt_ori_world = np.dot(tgt_rot_rob, const.DEFAULT_ROT)
@@ -42,10 +43,10 @@ def gen_delta_state(motion, tgt_frame, cur_pos_world, inv_cur_heading, heading):
     delta_vec.append([np.cos(delta_root_ori), np.sin(delta_root_ori)])
     delta_vec.append(tgt_root_rot)
 
-    for joint_index in range(8):
-        joint_T = motion_util.T_in_root(const.HUMAN_JOINT_NAMES[joint_index], cur_pose)
-        _, joint_pos_local = conversions.T2Rp(joint_T)
-        delta_vec.append(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
+    # for joint_index in range(8):
+    #     joint_T = motion_util.T_in_root(const.HUMAN_JOINT_NAMES[joint_index], cur_pose)
+    #     _, joint_pos_local = conversions.T2Rp(joint_T)
+    #     delta_vec.append(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
 
     return delta_vec
 
@@ -71,7 +72,9 @@ def gen_human_input(motion, i):
     for joint_index in range(8):
         joint_T = motion_util.T_in_root(const.HUMAN_JOINT_NAMES[joint_index], cur_pose)
         _, joint_pos_local = conversions.T2Rp(joint_T)
+        # print(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
         obs.append(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
+
 
 
     for j in np.arange(-const.HU_HIS_LEN, const.HU_FU_LEN+1):
@@ -87,7 +90,6 @@ def gen_human_input(motion, i):
         delta_vec = gen_delta_state(motion, frame_idx, cur_pos_world, inv_heading_rot, heading)
         obs = np.concatenate([obs, delta_vec])
     obs = np.concatenate(obs)
-    
     return np.reshape(obs, (1, obs.shape[0]))
 
 

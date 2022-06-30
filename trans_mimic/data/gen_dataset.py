@@ -24,19 +24,19 @@ import trans_mimic.utilities.constant as const
 
 
 human_files = ['01_01','02_01','02_02','02_03','49_02','74_03']
-human_files = ['02_01','02_02','07_01','07_02','07_03','07_04','07_05','09_01', '09_02', '09_03', '09_04', '09_05']
+human_files = ['02_01',]#'02_02','07_01','07_02','07_03','07_04','07_05','09_01', '09_02', '09_03', '09_04', '09_05']
 # human_files_2 = ['01_01','02_01','02_02','02_03','49_02','74_03']
 
 robot_files = [
   ["retarget_motion/data/dog_walk00_joint_pos.txt",160,560],
-  ["retarget_motion/data/dog_walk01_joint_pos.txt",360,1060 ],
-  ["retarget_motion/data/dog_walk02_joint_pos.txt",460,860 ],
-  ["retarget_motion/data/dog_walk03_joint_pos.txt",160,560 ],
-  ["retarget_motion/data/dog_run00_joint_pos.txt", 400, 500],
-  ["retarget_motion/data/dog_run01_joint_pos.txt",0,150 ],
-  ["retarget_motion/data/dog_run02_joint_pos.txt",0,200 ],
-  ["retarget_motion/data/dog_run04_joint_pos.txt",500,700 ],
-  ["retarget_motion/data/dog_walk09_joint_pos.txt",210,2010 ],
+#   ["retarget_motion/data/dog_walk01_joint_pos.txt",360,1060 ],
+#   ["retarget_motion/data/dog_walk02_joint_pos.txt",460,860 ],
+#   ["retarget_motion/data/dog_walk03_joint_pos.txt",160,560 ],
+#   ["retarget_motion/data/dog_run00_joint_pos.txt", 400, 500],
+#   ["retarget_motion/data/dog_run01_joint_pos.txt",0,150 ],
+#   ["retarget_motion/data/dog_run02_joint_pos.txt",0,200 ],
+#   ["retarget_motion/data/dog_run04_joint_pos.txt",500,700 ],
+#   ["retarget_motion/data/dog_walk09_joint_pos.txt",210,2010 ],
 ]
 
 
@@ -100,7 +100,7 @@ def gen_robot_dataset(motion_files):
         manipulation_motion = np.repeat(np.reshape(config.DEFAULT_ARM_POSE,(1,8)), repeats=retarget_frames_locomotion.shape[0], axis=0)
         num_frames = joint_pos_data.shape[0]
 
-        for i in range(0,num_frames- const.ROB_FU_LEN*2,2):
+        for i in range(0,num_frames- const.ROB_FU_LEN,1):
             obs = []
             # cur info
             cur_root_height = retarget_frames_locomotion[i,2]
@@ -126,7 +126,7 @@ def gen_robot_dataset(motion_files):
 
             # nxt info very redundent implementation
             for mini_step in range(1, const.ROB_FU_LEN+1):
-                step = mini_step*2
+                step = mini_step*1
                 nxt_root_height = retarget_frames_locomotion[i+step,2] 
                 
                 nxt_root_pos = retarget_frames_locomotion[i+step,0:3]
@@ -141,11 +141,11 @@ def gen_robot_dataset(motion_files):
                 nxt_root_ori_ = transformations.quaternion_multiply(nxt_inv_heading_rot, nxt_root_ori)
                 nxt_root_ori_ = motion_util.standardize_quaternion(nxt_root_ori_)
 
-                # nxt_j_pos =  retarget_frames_locomotion[i+step, 7:19]
-                # nxt_foot_in_hip = [foot_position_in_hip_frame(nxt_j_pos[0:3],-1),
-                #                 foot_position_in_hip_frame(nxt_j_pos[3:6],1),
-                #                 foot_position_in_hip_frame(nxt_j_pos[6:9],-1),
-                #                 foot_position_in_hip_frame(nxt_j_pos[9:12],1),]
+                nxt_j_pos =  retarget_frames_locomotion[i+step, 7:19]
+                nxt_foot_in_hip = [foot_position_in_hip_frame(nxt_j_pos[0:3],-1),
+                                foot_position_in_hip_frame(nxt_j_pos[3:6],1),
+                                foot_position_in_hip_frame(nxt_j_pos[6:9],-1),
+                                foot_position_in_hip_frame(nxt_j_pos[9:12],1),]
                 obs.append([nxt_root_height]) # root height in world frame
                 obs.append(delta_root_pos[0:2]) # delta position in cur frame
                 obs.append([np.cos(delta_root_ori), np.sin(delta_root_ori)]) # delta heading in cur frame
@@ -261,8 +261,6 @@ def gen_robot_eng_dataset(human_files):
     np.save(save_path+'/eng_retgt_data', np.array(robot_dataset))
 
     pybullet.disconnect()
-
-
 
 
 

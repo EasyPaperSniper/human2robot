@@ -56,9 +56,9 @@ class Motion_dataset():
     
     def sample_data_r(self,train=True):
         if train:
-            index = np.random.randint(0, self.train_num_r, size=(self.batch_size))
+            index = np.random.randint(0, self.train_num_h, size=(self.batch_size))
         else:
-            index = np.random.randint(self.train_num_r, self.buffer_size_r, size=(self.batch_size))
+            index = np.random.randint(self.train_num_h, self.buffer_size_r, size=(self.batch_size))
         return self.torchset_norm_r[index]
 
     def sample_god(self,train=True):
