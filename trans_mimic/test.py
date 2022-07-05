@@ -28,7 +28,7 @@ import trans_mimic.utilities.constant as const
 GROUND_URDF_FILENAME = "trans_mimic/robots/urdf/plane/plane.urdf"
 
 def main():
-    exp_index = 4
+    exp_index = 2
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:
@@ -37,15 +37,14 @@ def main():
         pass
 
     # define dataset
-    motion_dataset = Motion_dataset()
-    motion_dataset.load_dataset_h('./trans_mimic/data/motion_dataset/human_data.npy')
-    motion_dataset.load_dataset_r('./trans_mimic/data/motion_dataset/dog_retgt_data.npy')
-    hu_vec_dim, rob_vec_dim = motion_dataset.obs_dim_h, motion_dataset.obs_dim_r
+    motion_dataset = Motion_dataset(batch_size=64, device=device)
+    motion_dataset.load_robot_data('./trans_mimic/data/motion_dataset/')
+    rob_command_dim, rob_obs_dim, rob_nxt_obs_dim =  motion_dataset.tgt_command_r.dim, motion_dataset.dataset_r.dim, motion_dataset.tgt_r.dim
 
     # define transfer function & discriminator
     weight_path = save_path + '/full_net.pt'
-    trans_func = Module.MLP([512, 512], nn.LeakyReLU, hu_vec_dim, rob_vec_dim)
-    trans_func.load_state_dict(torch.load(weight_path, map_location=torch.device('cpu'))['gen_h2r_state_dict'])
+    trans_func = Module.MLP([512, 512], nn.LeakyReLU,rob_command_dim+rob_obs_dim, rob_nxt_obs_dim)
+    trans_func.load_state_dict(torch.load(weight_path, map_location=torch.device('cpu'))['gen_state_dict'])
 
 
     file_dirs = [
@@ -63,38 +62,32 @@ def main():
     p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
     pybullet.setAdditionalSearchPath(pd.getDataPath())
+    input()
 
     
     for i in range(len(viewer.motions)):
         pybullet.resetSimulation()
         pybullet.setGravity(0, 0, 0)
-        motion_ops.translate(viewer.motions[i], trans)
         ground = pybullet.loadURDF(const.GROUND_URDF_FILENAME)
         robot = pybullet.loadURDF(config.URDF_FILENAME, config.INIT_POS, config.INIT_ROT)
         set_pose(robot, np.concatenate([config.INIT_POS, config.INIT_ROT, config.DEFAULT_JOINT_POSE, config.DEFAULT_ARM_POSE]))
 
-        total_frames = viewer.motions[i].num_frames()
-        num_frames = total_frames-const.HU_FU_LEN
+        num_frames = motion_dataset.train_num_r
         bullet_view = pybullet_viewers((viewer.motions[i]).poses[0])
-        motion = viewer.motions[i]
-
         cur_rob_root_state = np.concatenate([config.INIT_POS, config.INIT_ROT])
 
         for f in range(num_frames*10):
             time_start = time.time()
             f_idx = f % num_frames
-            human_input = (env_wrapper.gen_human_input(motion, f_idx)[0] - motion_dataset.dataset_mean_h)/motion_dataset.dataset_std_h
-            rob_state_torch = trans_func.architecture(torch.from_numpy(np.float32(human_input)).cpu())
-            rob_state = rob_state_torch.cpu().detach().numpy()[0] * motion_dataset.dataset_std_r + motion_dataset.dataset_mean_r
-            # rob_state = motion_dataset.dataset_norm_r[f_idx] * motion_dataset.dataset_std_r + motion_dataset.dataset_mean_r
-            rob_state = motion_dataset.dataset_r[f_idx]
+            input_vec = np.concatenate([motion_dataset.dataset_r.norm[f_idx], motion_dataset.tgt_command_r.norm[f_idx]], axis=0)
+            rob_state_torch = trans_func.architecture(torch.from_numpy(np.float32(input_vec)).cpu())
+            pred_rob_state = rob_state_torch.cpu().detach().numpy() * motion_dataset.tgt_r.std + motion_dataset.tgt_r.mean
+            pred_rob_state = motion_dataset.tgt_r.norm[f_idx] * motion_dataset.tgt_r.std + motion_dataset.tgt_r.mean
+
     
 
-            cur_rob_state, cur_rob_root_state = env_wrapper.decode_robot_state(rob_state, cur_rob_root_state)
-
-
+            cur_rob_state, cur_rob_root_state = env_wrapper.decode_robot_state(pred_rob_state, cur_rob_root_state)
             set_pose(robot, np.concatenate([cur_rob_state,config.DEFAULT_ARM_POSE]))
-            bullet_view.set_maker_pose(pose = viewer.motions[i].poses[f_idx])
              
             update_camera(robot)
             p.configureDebugVisualizer(p.COV_ENABLE_SINGLE_STEP_RENDERING,1)

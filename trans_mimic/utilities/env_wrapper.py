@@ -93,26 +93,27 @@ def gen_human_input(motion, i):
     return np.reshape(obs, (1, obs.shape[0]))
 
 
-def decode_robot_state(rob_state, cur_rob_root_state):
+def decode_robot_state(pred_rob_state, cur_rob_root_state):
     cur_pos = cur_rob_root_state[0:3]
-    cur_height = rob_state[0]
+    cur_height = pred_rob_state[3]
     cur_heading_quat = cur_rob_root_state[3:7]
-    local_rot = rob_state[1:5]
+    local_rot = pred_rob_state[4:8]
     cur_root_rot = transformations.quaternion_multiply(cur_heading_quat, local_rot)
     cur_root_rot = motion_util.standardize_quaternion(cur_root_rot)
 
     j_pos = np.zeros(12)
-    foot_pos = rob_state[5:17]
+    foot_pos = pred_rob_state[8:20]
     j_pos[0:3] = foot_position_in_hip_frame_to_joint_angle(foot_pos[0:3],-1)
     j_pos[3:6] = foot_position_in_hip_frame_to_joint_angle(foot_pos[3:6],1)
     j_pos[6:9] = foot_position_in_hip_frame_to_joint_angle(foot_pos[6:9],-1)
     j_pos[9:12] = foot_position_in_hip_frame_to_joint_angle(foot_pos[9:12],1)
+    # print(j_pos)
 
     
-    delta_pos = pose3d.QuaternionRotatePoint(np.concatenate([rob_state[18:20],[rob_state[17]]]), cur_heading_quat)
+    delta_pos = pose3d.QuaternionRotatePoint(np.concatenate([pred_rob_state[0:2],[pred_rob_state[3]]]), cur_heading_quat)
     nxt_pos = cur_pos + delta_pos
     
-    delta_heading = np.arctan(rob_state[21]/rob_state[20]) 
+    delta_heading = pred_rob_state[2]
     next_heading = delta_heading + motion_util.calc_heading(cur_heading_quat)
     nxt_heading_world_q = transformations.quaternion_about_axis(next_heading,[0,0,1])
     # nxt_heading_world = transformations.quaternion_multiply(cur_heading_quat,  delta_heading_quat)

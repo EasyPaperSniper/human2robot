@@ -17,7 +17,7 @@ from trans_mimic.utilities import constant as learn_const
 
 class Trans_mimic():
     def __init__(self, 
-                generator_h2r,
+                generator_rob,
                 discriminator,
                 dataset,
                 learning_rate = 1e-5,
@@ -29,12 +29,12 @@ class Trans_mimic():
         self.is_train = is_train
         self.device = device
 
-        self.generator_h2r = generator_h2r
+        self.generator_rob = generator_rob
         self.discriminator = discriminator
         self.dataset = dataset
         self.learning_rate = learning_rate
 
-        self.h2r_optimizer = optim.Adam([*self.generator_h2r.parameters()], lr=learning_rate)
+        self.gen_rob_optimizer = optim.Adam([*self.generator_rob.parameters()], lr=learning_rate)
         self.dis_optimizer = optim.Adam([*self.discriminator.parameters()], lr=learning_rate)
         self.gan_loss_func = nn.BCEWithLogitsLoss()
         self.eng_loss_func = nn.MSELoss()
@@ -53,13 +53,13 @@ class Trans_mimic():
 
         
         for i in range(int(num_update)):
-            for j in range(50):
+            for j in range(25):
                 # update discriminator
-                input_traj_torch = self.dataset.sample_data_h()
-                sampled_robot_state = self.dataset.sample_data_r()
-                predict_robot_state_ = self.generator_h2r.predict(input_traj_torch).detach()
-                loss_D_real = self.gan_loss_func(self.discriminator.predict(sampled_robot_state), real_vec)
-                loss_D_fake = self.gan_loss_func(self.discriminator.predict(predict_robot_state_), fake_vec)
+                input_state_rob, target_nxt_state_rob, command_vec = self.dataset.sample_rob_state_command_torch()
+                input_vec = torch.cat((input_state_rob, command_vec), dim=1)
+                predict_nxt_state_rob = self.generator_rob.predict(input_vec).detach()
+                loss_D_real = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, target_nxt_state_rob),dim=1)), real_vec)
+                loss_D_fake = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, predict_nxt_state_rob),dim=1)), fake_vec)
                 dis_loss = (loss_D_real + loss_D_fake) * 0.5
                 self.dis_optimizer.zero_grad()
                 dis_loss.backward()
@@ -70,37 +70,31 @@ class Trans_mimic():
                     self.writer.add_scalar('trans_mimic/Dis_loss', dis_loss.item(), dis_update)
 
 
-            val_loss = self.gen_validation_loss()
-            self.writer.add_scalar('trans_mimic/Val_loss', val_loss.item(), dis_update)
+            # val_loss = self.gen_validation_loss()
+            # self.writer.add_scalar('trans_mimic/Val_loss', val_loss.item(), dis_update)
 
 
             for j in range(50):
                 # sample human input
-                input_traj_torch, input_traj_torch_  = self.dataset.sample_data_h_plus()
-                # input_traj_torch, tgt_rob_traj = self.dataset.sample_god()
-                predict_robot_state, predict_robot_state_ = self.generator_h2r.predict(input_traj_torch), self.generator_h2r.predict(input_traj_torch_).detach()
-                sampled_robot_state = self.dataset.sample_data_r()
+                input_state_rob, target_nxt_state_rob, command_vec = self.dataset.sample_rob_state_command_torch()
+                input_vec = torch.cat((input_state_rob, command_vec), dim=1)
+                predict_nxt_state_rob = self.generator_rob.predict(input_vec)
 
                 # loss function
-                adv_loss = self.gan_loss_func(self.discriminator.predict(predict_robot_state), real_vec)
-                # CoM_pos_loss,CoM_ori_loss,EE_loss = self.engineer_loss_func(input_traj_torch, predict_robot_state)
+                adv_loss = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, predict_nxt_state_rob),dim=1)), real_vec)
+                sup_loss = self.eng_loss_func(target_nxt_state_rob ,predict_nxt_state_rob)
 
-                # eng_loss = CoM_pos_loss*1 + CoM_ori_loss*1 + EE_loss*0
-                # eng_loss = self.eng_loss_func(tgt_rob_traj, predict_robot_state)
-                # const_loss = self.prediction_consist_func(predict_robot_state, predict_robot_state_ )
-
-                total_loss =  1 * adv_loss # + 0 * eng_loss #+ 0 * const_loss
-                self.h2r_optimizer.zero_grad()
+                total_loss =  1* adv_loss + 0*sup_loss
+                self.gen_rob_optimizer.zero_grad()
                 total_loss.backward()
-                self.h2r_optimizer.step()
+                self.gen_rob_optimizer.step()
                 trans_update += 1
 
                 if (j+1)%10==0:
                     self.writer.add_scalar('trans_mimic/Adv_loss', adv_loss.item(), trans_update)
-                    # self.writer.add_scalar('trans_mimic/Eng_loss', eng_loss.item(), trans_update)
+                    self.writer.add_scalar('trans_mimic/Sup_loss', sup_loss.item(), trans_update)
 
 
-            
 
     def gen_validation_loss(self,):
         real_vec = torch.tensor([[1.0,0.0]]*self.dataset.batch_size,device=self.device)
@@ -112,35 +106,6 @@ class Trans_mimic():
         loss_D_fake = self.gan_loss_func(self.discriminator.predict(val_predict_robot_state_), fake_vec)
         val_loss = 0.5 * (loss_D_real + loss_D_fake)
         return val_loss
-
-
-    def engineer_loss_func(self, human_traj, predicted_robot_traj):
-        unnorm_human_traj = human_traj*(torch.tensor(self.dataset.dataset_std_h).to(self.device)) + torch.tensor(self.dataset.dataset_mean_h).to(self.device)
-        unnorm_robot_traj = predicted_robot_traj*(torch.tensor(self.dataset.dataset_std_r).to(self.device)) + torch.tensor(self.dataset.dataset_mean_r).to(self.device)
-        
-        # CoM Pos CoM Ori loss
-        CoM_pos_loss = self.eng_loss_func(unnorm_human_traj[:,0]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,0]/learn_const.ROBOT_HEIGHT) +\
-                            self.eng_loss_func(unnorm_human_traj[:,227:230]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\
-                                0*self.eng_loss_func(unnorm_human_traj[:,260:263]/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,14:17]/learn_const.ROBOT_HEIGHT)
-
-        CoM_ori_loss = self.eng_loss_func(unnorm_human_traj[:,1:5]*0, unnorm_robot_traj[:,1:5]) +\
-                            self.eng_loss_func(unnorm_human_traj[:,230:236]*0, unnorm_robot_traj[:,8:14]) +\
-                                0*self.eng_loss_func(unnorm_human_traj[:,263:269], unnorm_robot_traj[:,17:23])
-
-        # EE loss
-        EE_loss = self.eng_loss_func((unnorm_human_traj[:,14:17]-unnorm_human_traj[:,5:8]-torch.tensor([0.15, -0.12, 0]).to(self.device))/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,5:8]/learn_const.ROBOT_HEIGHT) +\
-                    self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20]-torch.tensor([0.15, 0.12, 0]).to(self.device))/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,8:11]/learn_const.ROBOT_HEIGHT) #+\
-                    # self.eng_loss_func((unnorm_human_traj[:,26:29] - unnorm_human_traj[:,17:20])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,11:14]/learn_const.ROBOT_HEIGHT) +\
-                    # self.eng_loss_func((unnorm_human_traj[:,14:17] - unnorm_human_traj[:,5:8])/learn_const.HUMAN_LEG_HEIGHT, unnorm_robot_traj[:,14:17]/learn_const.ROBOT_HEIGHT)
-
-        return CoM_pos_loss,CoM_ori_loss,EE_loss
-
-
-    def prediction_consist_func(self,predict_robot_state, predict_robot_state_ ):
-        joint_const_loss = 0
-        for i in range(0,learn_const.ROB_FU_LEN):
-            joint_const_loss +=self.eng_loss_func(predict_robot_state_[:,5+i*21:17+i*21], predict_robot_state[:,26+i*21:38+i*21])
-        return joint_const_loss
 
 
     def log(self, variable):

@@ -17,7 +17,7 @@ from trans_mimic.utilities.helper import tensorboard_launcher
 
 
 def main():
-    exp_index = 3
+    exp_index = 2
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:
@@ -27,24 +27,23 @@ def main():
 
     # define dataset
     motion_dataset = Motion_dataset(batch_size=64, device=device)
-    motion_dataset.load_dataset_h('./trans_mimic/data/motion_dataset/human_data.npy')
-    motion_dataset.load_dataset_r('./trans_mimic/data/motion_dataset/dog_retgt_data.npy')
-    hu_vec_dim, rob_vec_dim = motion_dataset.obs_dim_h, motion_dataset.obs_dim_r
+    motion_dataset.load_robot_data('./trans_mimic/data/motion_dataset/')
+    rob_command_dim, rob_obs_dim, rob_nxt_obs_dim =  motion_dataset.tgt_command_r.dim, motion_dataset.dataset_r.dim, motion_dataset.tgt_r.dim
 
     # define transfer function & discriminator
-    generator_h2r = Module.Generator(Module.MLP([512, 512], nn.LeakyReLU, hu_vec_dim, rob_vec_dim), device)
-    discriminator = Module.Discriminator( Module.MLP([512, 512], nn.LeakyReLU, rob_vec_dim, 2), device)
+    generator_rob = Module.Generator(Module.MLP([512, 512], nn.LeakyReLU,rob_command_dim+rob_obs_dim, rob_nxt_obs_dim), device)
+    discriminator = Module.Discriminator( Module.MLP([512, 512], nn.LeakyReLU, rob_obs_dim+rob_nxt_obs_dim, 2), device)
 
     tensorboard_launcher(save_path + "/..") 
 
     # define transmimic
-    trans_mimic = Trans_mimic(generator_h2r=generator_h2r,discriminator = discriminator,dataset=motion_dataset, log_dir = save_path, device=device)
+    trans_mimic = Trans_mimic(generator_rob=generator_rob,discriminator = discriminator,dataset=motion_dataset, log_dir = save_path, device=device)
 
     # train stuff
     trans_mimic.train(num_update=5e2, log_freq=100)
 
     torch.save({
-            'gen_h2r_state_dict': generator_h2r.architecture.state_dict(),
+            'gen_state_dict': generator_rob.architecture.state_dict(),
             'discriminator_state_dict': discriminator.architecture.state_dict(),
         }, save_path+"/full_net.pt")
 

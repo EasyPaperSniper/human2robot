@@ -45,9 +45,10 @@ def foot_position_in_hip_frame_to_joint_angle(foot_position, l_hip_sign=1):
     l_low = 0.3205
     l_hip = 0.111 * l_hip_sign
     x, y, z = foot_position[0], foot_position[1], foot_position[2]
-    theta_knee = -np.arccos(
+    theta_knee = -np.arccos(min(1,
         (x**2 + y**2 + z**2 - l_hip**2 - l_low**2 - l_up**2) /
-        (2 * l_low * l_up))
+        (2 * l_low * l_up)))
+
     l = np.sqrt(l_up**2 + l_low**2 + 2 * l_up * l_low * np.cos(theta_knee))
     theta_hip = np.arcsin(-x / l) - theta_knee / 2
     c1 = l_hip * y - l * np.cos(theta_hip + theta_knee / 2) * z
