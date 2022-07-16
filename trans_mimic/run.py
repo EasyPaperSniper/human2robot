@@ -17,7 +17,7 @@ from trans_mimic.utilities.helper import tensorboard_launcher
 
 
 def main():
-    exp_index = 2
+    exp_index = 7
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     save_path = './trans_mimic/data/training_result/exp_'+ str(exp_index)
     try:
@@ -28,10 +28,12 @@ def main():
     # define dataset
     motion_dataset = Motion_dataset(batch_size=64, device=device)
     motion_dataset.load_robot_data('./trans_mimic/data/motion_dataset/')
+    motion_dataset.load_dataset_h('./trans_mimic/data/motion_dataset/human_data.npy')
     rob_command_dim, rob_obs_dim, rob_nxt_obs_dim =  motion_dataset.tgt_command_r.dim, motion_dataset.dataset_r.dim, motion_dataset.tgt_r.dim
+    h_traj_dim = motion_dataset.dataset_h.dim
 
     # define transfer function & discriminator
-    generator_rob = Module.Generator(Module.MLP([512, 512], nn.LeakyReLU,rob_command_dim+rob_obs_dim, rob_nxt_obs_dim), device)
+    generator_rob = Module.Generator(Module.MLP([512, 512], nn.LeakyReLU, rob_command_dim +rob_obs_dim, rob_nxt_obs_dim), device)
     discriminator = Module.Discriminator( Module.MLP([512, 512], nn.LeakyReLU, rob_obs_dim+rob_nxt_obs_dim, 2), device)
 
     tensorboard_launcher(save_path + "/..") 
@@ -40,7 +42,7 @@ def main():
     trans_mimic = Trans_mimic(generator_rob=generator_rob,discriminator = discriminator,dataset=motion_dataset, log_dir = save_path, device=device)
 
     # train stuff
-    trans_mimic.train(num_update=5e2, log_freq=100)
+    trans_mimic.train(num_update=1.5e3, log_freq=100)
 
     torch.save({
             'gen_state_dict': generator_rob.architecture.state_dict(),

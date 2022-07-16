@@ -56,7 +56,8 @@ class Trans_mimic():
             for j in range(25):
                 # update discriminator
                 input_state_rob, target_nxt_state_rob, command_vec = self.dataset.sample_rob_state_command_torch()
-                input_vec = torch.cat((input_state_rob, command_vec), dim=1)
+                input_traj_hu = self.dataset.sample_data_h()
+                input_vec = torch.cat((input_state_rob, command_vec*0), dim=1)
                 predict_nxt_state_rob = self.generator_rob.predict(input_vec).detach()
                 loss_D_real = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, target_nxt_state_rob),dim=1)), real_vec)
                 loss_D_fake = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, predict_nxt_state_rob),dim=1)), fake_vec)
@@ -77,14 +78,16 @@ class Trans_mimic():
             for j in range(50):
                 # sample human input
                 input_state_rob, target_nxt_state_rob, command_vec = self.dataset.sample_rob_state_command_torch()
-                input_vec = torch.cat((input_state_rob, command_vec), dim=1)
+                input_traj_hu = self.dataset.sample_data_h()
+                input_vec = torch.cat((input_state_rob, command_vec*0), dim=1)
                 predict_nxt_state_rob = self.generator_rob.predict(input_vec)
 
                 # loss function
                 adv_loss = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, predict_nxt_state_rob),dim=1)), real_vec)
                 sup_loss = self.eng_loss_func(target_nxt_state_rob ,predict_nxt_state_rob)
+                eng_loss = self.eng_loss_func(command_vec[:,3], predict_nxt_state_rob[:,3])
 
-                total_loss =  1* adv_loss + 0*sup_loss
+                total_loss =  1* adv_loss + 0*sup_loss + 1* eng_loss
                 self.gen_rob_optimizer.zero_grad()
                 total_loss.backward()
                 self.gen_rob_optimizer.step()

@@ -40,7 +40,7 @@ def gen_delta_state(motion, tgt_frame, cur_pos_world, inv_cur_heading, heading):
 
     delta_vec.append([tgt_pos_world[2]])
     delta_vec.append(delta_pos[0:2])
-    delta_vec.append([np.cos(delta_root_ori), np.sin(delta_root_ori)])
+    delta_vec.append([delta_root_ori])
     delta_vec.append(tgt_root_rot)
 
     # for joint_index in range(8):
@@ -69,11 +69,11 @@ def gen_human_input(motion, i):
     # obs.append([0,0])
     # obs.append([0,1])
     obs.append(cur_root_rot)    # rot in current frame
-    for joint_index in range(8):
-        joint_T = motion_util.T_in_root(const.HUMAN_JOINT_NAMES[joint_index], cur_pose)
-        _, joint_pos_local = conversions.T2Rp(joint_T)
-        # print(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
-        obs.append(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
+    # for joint_index in range(8):
+    #     joint_T = motion_util.T_in_root(const.HUMAN_JOINT_NAMES[joint_index], cur_pose)
+    #     _, joint_pos_local = conversions.T2Rp(joint_T)
+    #     # print(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
+    #     obs.append(np.dot(const.INV_DEFAULT_ROT,joint_pos_local))
 
 
 
@@ -95,7 +95,7 @@ def gen_human_input(motion, i):
 
 def decode_robot_state(pred_rob_state, cur_rob_root_state):
     cur_pos = cur_rob_root_state[0:3]
-    cur_height = pred_rob_state[3]
+    cur_height = pred_rob_state[0]
     cur_heading_quat = cur_rob_root_state[3:7]
     local_rot = pred_rob_state[4:8]
     cur_root_rot = transformations.quaternion_multiply(cur_heading_quat, local_rot)
@@ -110,10 +110,10 @@ def decode_robot_state(pred_rob_state, cur_rob_root_state):
     # print(j_pos)
 
     
-    delta_pos = pose3d.QuaternionRotatePoint(np.concatenate([pred_rob_state[0:2],[pred_rob_state[3]]]), cur_heading_quat)
+    delta_pos = pose3d.QuaternionRotatePoint(np.concatenate([pred_rob_state[1:3],[pred_rob_state[0]]]), cur_heading_quat)
     nxt_pos = cur_pos + delta_pos
     
-    delta_heading = pred_rob_state[2]
+    delta_heading = pred_rob_state[3]
     next_heading = delta_heading + motion_util.calc_heading(cur_heading_quat)
     nxt_heading_world_q = transformations.quaternion_about_axis(next_heading,[0,0,1])
     # nxt_heading_world = transformations.quaternion_multiply(cur_heading_quat,  delta_heading_quat)

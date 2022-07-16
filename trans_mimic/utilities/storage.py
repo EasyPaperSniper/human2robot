@@ -28,6 +28,8 @@ class Motion_dataset():
     
     def load_dataset_h(self, dir):
         self.dataset_h = self.load_data(dir)
+        self.buffer_size_h = self.dataset_h.ori_data.shape[0]
+        self.train_num_h = int(self.dataset_h.ori_data.shape[0] * self.train_ratio)
 
     def load_dataset_r(self, dir):
         self.dataset_r = self.load_data(dir)
@@ -56,12 +58,12 @@ class Motion_dataset():
         data.torch_norm =  torch.from_numpy(data.norm).to(self.device)
         return data
 
-    def sample_data_r(self,train=True):
+    def sample_data_h(self,train=True):
         if train:
-            index = np.random.randint(0, self.train_num_r, size=(self.batch_size))
+            index = np.random.randint(0, self.train_num_h, size=(self.batch_size))
         else:
-            index = np.random.randint(self.train_num_r, self.buffer_size_r, size=(self.batch_size))
-        return self.detaset_r.norm[index]
+            index = np.random.randint(self.train_num_h, self.buffer_size_h, size=(self.batch_size))
+        return self.dataset_h.torch_norm[index]
 
 
     def sample_rob_state_command_torch(self, train=True):

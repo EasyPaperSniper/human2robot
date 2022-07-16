@@ -28,15 +28,15 @@ human_files = ['02_01',]#'02_02','07_01','07_02','07_03','07_04','07_05','09_01'
 # human_files_2 = ['01_01','02_01','02_02','02_03','49_02','74_03']
 
 robot_files = [
-#   ["retarget_motion/data/dog_walk00_joint_pos.txt",160,560],
-#   ["retarget_motion/data/dog_walk01_joint_pos.txt",360,1060 ],
-#   ["retarget_motion/data/dog_walk02_joint_pos.txt",460,860 ],
-#   ["retarget_motion/data/dog_walk03_joint_pos.txt",160,560 ],
-#   ["retarget_motion/data/dog_run00_joint_pos.txt", 400, 500],
-#   ["retarget_motion/data/dog_run01_joint_pos.txt",0,150 ],
-#   ["retarget_motion/data/dog_run02_joint_pos.txt",0,200 ],
-#   ["retarget_motion/data/dog_run04_joint_pos.txt",500,700 ],
-  ["retarget_motion/data/dog_walk09_joint_pos.txt",210,2010 ],
+    ["retarget_motion/data/dog_walk09_joint_pos.txt",210,2010 ],
+  ["retarget_motion/data/dog_walk00_joint_pos.txt",160,560],
+  ["retarget_motion/data/dog_walk01_joint_pos.txt",360,1060 ],
+  ["retarget_motion/data/dog_walk02_joint_pos.txt",460,860 ],
+  ["retarget_motion/data/dog_walk03_joint_pos.txt",160,560 ],
+  ["retarget_motion/data/dog_run01_joint_pos.txt",0,150 ],
+  ["retarget_motion/data/dog_run02_joint_pos.txt",0,200 ],
+  ["retarget_motion/data/dog_run04_joint_pos.txt",500,700 ],
+  ["retarget_motion/data/dog_run00_joint_pos.txt", 400, 500],
 ]
 
 
@@ -102,7 +102,7 @@ def gen_robot_dataset(motion_files):
         manipulation_motion = np.repeat(np.reshape(config.DEFAULT_ARM_POSE,(1,8)), repeats=retarget_frames_locomotion.shape[0], axis=0)
         num_frames = joint_pos_data.shape[0]
 
-        for i in range(0,num_frames- const.ROB_FU_LEN-1,1):
+        for i in range(0,num_frames- const.ROB_FU_LEN*2-1,2):
             obs = []
             command = []
             # cur info
@@ -129,7 +129,7 @@ def gen_robot_dataset(motion_files):
                 if mini_step ==0:
                     continue
                 else:
-                    step = mini_step*1
+                    step = mini_step*2
                     nxt_root_height = retarget_frames_locomotion[i+step,2] 
                     
                     nxt_root_pos = retarget_frames_locomotion[i+step,0:3]
@@ -149,27 +149,38 @@ def gen_robot_dataset(motion_files):
                                     foot_position_in_hip_frame(nxt_j_pos[3:6],1),
                                     foot_position_in_hip_frame(nxt_j_pos[6:9],-1),
                                     foot_position_in_hip_frame(nxt_j_pos[9:12],1),]
-                    obs.append([nxt_root_height]) # root height in world frame
-                    obs.append(delta_root_pos[0:2]) # delta position in cur frame
-                    obs.append([delta_root_ori]) # delta heading in cur frame
-                    obs.append(nxt_root_ori_) # orientation in robot next local frame
-                    # obs = obs + nxt_foot_in_hip # foot pos in robot's body frame
+                    if mini_step<0:
+                        obs.append([nxt_root_height]) # root height in world frame
+                        obs.append(delta_root_pos[0:2]) # delta position in cur frame
+                        obs.append([delta_root_ori]) # delta heading in cur frame
+                        obs.append(nxt_root_ori_) # orientation in robot next local frame
+                        # obs = obs + nxt_foot_in_hip # foot pos in robot's body frame
+                    else:
+                        command.append([nxt_root_height]) # root height in world frame
+                        command.append(delta_root_pos[0:2]) # delta position in cur frame
+                        command.append([delta_root_ori]) # delta heading in cur frame
+                        command.append(nxt_root_ori_) # orientation in robot next local frame
+
 
                     if mini_step==1:
                         if i>0:
-                            save_delta = np.array(nxt_obs)
-                        nxt_obs = delta_root_pos[0:2]
-                        nxt_obs = np.append(nxt_obs, [delta_root_ori]) 
-                        command.append(delta_root_pos[0:2])
-                        command.append([delta_root_ori])
-                        # command += nxt_foot_in_hip
+                            save_delta = np.concatenate(nxt_obs)
+                            
+                        nxt_obs= [[nxt_root_height]]
+                        nxt_obs.append(delta_root_pos[0:2])
+                        nxt_obs.append([delta_root_ori])
+                        nxt_obs.append(nxt_root_ori_)
+                        nxt_obs += nxt_foot_in_hip
+
 
   
             # state dim (1+2+2+4+12) * length
             robot_command.append(np.concatenate(command))
             robot_dataset.append(np.concatenate(obs))
             if i >0:
-                robot_nxt_dataset.append(np.concatenate([save_delta, robot_dataset[-1]]))
+                robot_nxt_dataset.append(save_delta)
+        robot_dataset = robot_dataset[:-1]
+        robot_command = robot_command[:-1]
         print(np.shape(robot_dataset))
         print(np.shape(robot_command))
         print(np.shape(robot_nxt_dataset))
@@ -180,8 +191,8 @@ def gen_robot_dataset(motion_files):
     except:
         pass
 
-    np.save(save_path+'/robot_obs', np.array(robot_dataset)[:-1])
-    np.save(save_path+'/robot_command_obs', np.array(robot_command)[:-1])
+    np.save(save_path+'/robot_obs', np.array(robot_dataset))
+    np.save(save_path+'/robot_command_obs', np.array(robot_command))
     np.save(save_path + '/robot_nxt_obs.npy', np.array(robot_nxt_dataset))
 
     pybullet.disconnect()
@@ -287,6 +298,6 @@ def gen_robot_eng_dataset(human_files):
 
 
 if __name__ == '__main__':
-    gen_human_dataset(human_files)
-    # gen_robot_dataset(robot_files)
+    # gen_human_dataset(human_files)
+    gen_robot_dataset(robot_files)
     # gen_robot_eng_dataset(human_files_2)

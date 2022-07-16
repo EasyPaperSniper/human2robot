@@ -6,4 +6,4 @@ __pycache__/
 ./data/human_demo/*
 ./data/*
 data/CMU
-./trans_mimic/data/train_result/*
+./trans_mimic/data/training_result/*
