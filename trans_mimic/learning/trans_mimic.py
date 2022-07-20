@@ -57,7 +57,7 @@ class Trans_mimic():
                 # update discriminator
                 input_state_rob, target_nxt_state_rob, command_vec = self.dataset.sample_rob_state_command_torch()
                 input_traj_hu = self.dataset.sample_data_h()
-                input_vec = torch.cat((input_state_rob, command_vec*0), dim=1)
+                input_vec = torch.cat((input_state_rob, input_traj_hu), dim=1)
                 predict_nxt_state_rob = self.generator_rob.predict(input_vec).detach()
                 loss_D_real = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, target_nxt_state_rob),dim=1)), real_vec)
                 loss_D_fake = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, predict_nxt_state_rob),dim=1)), fake_vec)
@@ -79,15 +79,14 @@ class Trans_mimic():
                 # sample human input
                 input_state_rob, target_nxt_state_rob, command_vec = self.dataset.sample_rob_state_command_torch()
                 input_traj_hu = self.dataset.sample_data_h()
-                input_vec = torch.cat((input_state_rob, command_vec*0), dim=1)
+                input_vec = torch.cat((input_state_rob, input_traj_hu), dim=1)
                 predict_nxt_state_rob = self.generator_rob.predict(input_vec)
 
                 # loss function
                 adv_loss = self.gan_loss_func(self.discriminator.predict(torch.cat((input_state_rob, predict_nxt_state_rob),dim=1)), real_vec)
-                sup_loss = self.eng_loss_func(target_nxt_state_rob ,predict_nxt_state_rob)
-                eng_loss = self.eng_loss_func(command_vec[:,3], predict_nxt_state_rob[:,3])
+                # eng_loss = self.eng_loss_func(command_vec[:,3], predict_nxt_state_rob[:,3])
 
-                total_loss =  1* adv_loss + 0*sup_loss + 1* eng_loss
+                total_loss =  1* adv_loss  #+ 1* eng_loss
                 self.gen_rob_optimizer.zero_grad()
                 total_loss.backward()
                 self.gen_rob_optimizer.step()
@@ -95,8 +94,10 @@ class Trans_mimic():
 
                 if (j+1)%10==0:
                     self.writer.add_scalar('trans_mimic/Adv_loss', adv_loss.item(), trans_update)
-                    self.writer.add_scalar('trans_mimic/Sup_loss', sup_loss.item(), trans_update)
 
+
+    def gen_eng_loss(self, predict_nxt_state, human_traj):
+        
 
 
     def gen_validation_loss(self,):

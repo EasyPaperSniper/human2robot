@@ -45,7 +45,7 @@ def main():
 
     # define transfer function & discriminator
     weight_path = save_path + '/full_net.pt'
-    trans_func = Module.MLP([512, 512], nn.LeakyReLU,rob_command_dim +rob_obs_dim, rob_nxt_obs_dim)
+    trans_func = Module.MLP([512, 512], nn.LeakyReLU,h_traj_dim +rob_obs_dim, rob_nxt_obs_dim)
     trans_func.load_state_dict(torch.load(weight_path, map_location=torch.device('cpu'))['gen_state_dict'])
 
 

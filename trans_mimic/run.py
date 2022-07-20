@@ -33,7 +33,7 @@ def main():
     h_traj_dim = motion_dataset.dataset_h.dim
 
     # define transfer function & discriminator
-    generator_rob = Module.Generator(Module.MLP([512, 512], nn.LeakyReLU, rob_command_dim +rob_obs_dim, rob_nxt_obs_dim), device)
+    generator_rob = Module.Generator(Module.MLP([512, 512], nn.LeakyReLU, h_traj_dim +rob_obs_dim, rob_nxt_obs_dim), device)
     discriminator = Module.Discriminator( Module.MLP([512, 512], nn.LeakyReLU, rob_obs_dim+rob_nxt_obs_dim, 2), device)
 
     tensorboard_launcher(save_path + "/..") 
