@@ -93,32 +93,54 @@ def gen_human_input(motion, i):
     return np.reshape(obs, (1, obs.shape[0]))
 
 
-def decode_robot_state(pred_rob_state, cur_rob_root_state):
-    cur_pos = cur_rob_root_state[0:3]
-    cur_height = pred_rob_state[0]
+def decode_robot_state(pred_rob_state, cur_rob_root_state, cur_rob_input_state):
+    cur_pos_world = cur_rob_root_state[0:3]
     cur_heading_quat = cur_rob_root_state[3:7]
-    local_rot = pred_rob_state[4:8]
-    cur_root_rot = transformations.quaternion_multiply(cur_heading_quat, local_rot)
-    cur_root_rot = motion_util.standardize_quaternion(cur_root_rot)
+    nxt_height = pred_rob_state[0]
+    nxt_rot = pred_rob_state[4:8]
+   
+    nxt_j_pos = foot_pos_in_hip_to_joint_angles(pred_rob_state[8:20])
+    delta_pos_world = pose3d.QuaternionRotatePoint(np.concatenate([pred_rob_state[1:3],[pred_rob_state[0]]]), cur_heading_quat)
+    nxt_pos_world = cur_pos_world + delta_pos_world
 
-    j_pos = np.zeros(12)
-    foot_pos = pred_rob_state[8:20]
-    j_pos[0:3] = foot_position_in_hip_frame_to_joint_angle(foot_pos[0:3],-1)
-    j_pos[3:6] = foot_position_in_hip_frame_to_joint_angle(foot_pos[3:6],1)
-    j_pos[6:9] = foot_position_in_hip_frame_to_joint_angle(foot_pos[6:9],-1)
-    j_pos[9:12] = foot_position_in_hip_frame_to_joint_angle(foot_pos[9:12],1)
-    # print(j_pos)
-
-    
-    delta_pos = pose3d.QuaternionRotatePoint(np.concatenate([pred_rob_state[1:3],[pred_rob_state[0]]]), cur_heading_quat)
-    nxt_pos = cur_pos + delta_pos
-    
     delta_heading = pred_rob_state[3]
     next_heading = delta_heading + motion_util.calc_heading(cur_heading_quat)
     nxt_heading_world_q = transformations.quaternion_about_axis(next_heading,[0,0,1])
+
+    nxt_root_rot_world = transformations.quaternion_multiply(nxt_heading_world_q, nxt_rot)
+    nxt_root_rot_world = motion_util.standardize_quaternion(nxt_root_rot_world)
+
     # nxt_heading_world = transformations.quaternion_multiply(cur_heading_quat,  delta_heading_quat)
     # nxt_heading_world = motion_util.standardize_quaternion(nxt_heading_world)
     # nxt_heading_world_q = motion_util.calc_heading_rot(nxt_heading_world)
 
+    nxt_obs = []
+    inv_heading_rob = transformations.quaternion_about_axis(-delta_heading, [0, 0, 1])
+    nxt_obs.append([nxt_height]) 
+    nxt_obs.append(nxt_rot)
+    nxt_obs.append(pred_rob_state[8:20])
+    for i in range(const.ROB_HIS_LEN-1):
+        delta_root_pos_cur = np.concatenate([cur_rob_input_state[i*8+26:i*8+28] - pred_rob_state[1:3],[pred_rob_state[0]]])
+        delta_root_pos_nxt =  pose3d.QuaternionRotatePoint(delta_root_pos_cur, inv_heading_rob)
+        his_delta_root_head = cur_rob_input_state[i*8+28]
+        nxt_obs.append([cur_rob_input_state[i*8+25]]) # root height in world frame
+        nxt_obs.append(delta_root_pos_nxt[0:2]) # delta position in cur frame
+        nxt_obs.append([his_delta_root_head - delta_heading]) # delta heading in cur frame
+        nxt_obs.append(cur_rob_input_state[i*8+29:i*8+33])
+    delta_root_pos_nxt = pose3d.QuaternionRotatePoint(np.concatenate([-pred_rob_state[1:3],[pred_rob_state[0]]]), inv_heading_rob)
+    nxt_obs.append([cur_rob_input_state[0]]) # root height in world frame
+    nxt_obs.append(delta_root_pos_nxt[0:2]) # delta position in cur frame
+    nxt_obs.append([ -delta_heading]) # delta heading in cur frame
+    nxt_obs.append(cur_rob_input_state[1:5])
+
+
     
-    return np.concatenate([cur_pos[0:2],[cur_height],cur_root_rot ,j_pos]), np.concatenate([nxt_pos, nxt_heading_world_q])
+    return np.concatenate([nxt_pos_world[0:2],[nxt_height],nxt_root_rot_world ,nxt_j_pos]), np.concatenate([nxt_pos_world, nxt_heading_world_q]), np.concatenate(nxt_obs)
+
+def foot_pos_in_hip_to_joint_angles(foot_pos):
+    j_pos = np.zeros(12)
+    j_pos[0:3] = foot_position_in_hip_frame_to_joint_angle(foot_pos[0:3],-1)
+    j_pos[3:6] = foot_position_in_hip_frame_to_joint_angle(foot_pos[3:6],1)
+    j_pos[6:9] = foot_position_in_hip_frame_to_joint_angle(foot_pos[6:9],-1)
+    j_pos[9:12] = foot_position_in_hip_frame_to_joint_angle(foot_pos[9:12],1)
+    return j_pos

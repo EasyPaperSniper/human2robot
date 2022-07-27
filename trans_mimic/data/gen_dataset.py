@@ -140,7 +140,7 @@ def gen_robot_dataset(motion_files):
                     nxt_heading = motion_util.calc_heading(nxt_root_ori)
                     delta_root_ori = nxt_heading - cur_heading
 
-                    nxt_inv_heading_rot =  transformations.quaternion_about_axis(-nxt_heading, [0, 0, 1])
+                    nxt_inv_heading_rot = transformations.quaternion_about_axis(-nxt_heading, [0, 0, 1])
                     nxt_root_ori_ = transformations.quaternion_multiply(nxt_inv_heading_rot, nxt_root_ori)
                     nxt_root_ori_ = motion_util.standardize_quaternion(nxt_root_ori_)
 
